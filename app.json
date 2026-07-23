@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "car-glucose-display",
+    "name": "Car Glucose Display",
     "slug": "car-glucose-display",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,7 +16,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jonathanf.carglucosedisplay"
     },
     "web": {
       "favicon": "./assets/favicon.png"
