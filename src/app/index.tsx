@@ -1,4 +1,4 @@
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import MainView from "../components/MainView";
 import { AppConfigProvider, useAppConfig } from "../config/AppConfigProvider";
 import { useMemo } from "react";
@@ -35,32 +35,36 @@ function AppContent() {
 
     if (!isLoaded) {
         return (
-            <View>
-                <Text>Loading configuration...</Text>
+            <View style={styles.messageContainer}>
+                <Text style={styles.message}>Loading configuration...</Text>
+                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
             </View>
         );
     }
 
     if (status === "disabled") {
         return (
-            <View>
-                <Text>No glucose source configured</Text>
+            <View style={styles.messageContainer}>
+                <Text style={styles.message}>No glucose source configured!</Text>
+                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
             </View>
         )
     }
 
     if (status === "loading") {
         return (
-            <View>
-                <Text>Connecting...</Text>
+            <View style={styles.messageContainer}>
+                <Text style={styles.message}>Connecting...</Text>
+                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
             </View>
         )
     }
 
     if (latestReading === null) {
         return (
-            <View>
-                <Text>{error ?? "No glucose reading available"}</Text>
+            <View style={styles.messageContainer}>
+                <Text style={[styles.message, {color: "#ff0000"}]}>{error ?? "No glucose reading available"}</Text>
+                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
             </View>
         )
     }
@@ -76,7 +80,7 @@ function AppContent() {
 
     return (
         <View>
-            <Text>{formatGlucose(latestReading.valueMgDl, config.display.unit)}</Text>
+            <Text style={styles.text}>{formatGlucose(latestReading.valueMgDl, config.display.unit)}</Text>
         </View>
     )
 }
@@ -90,3 +94,20 @@ export default function App() {
         </AppConfigProvider>
     )
 }
+
+const styles = StyleSheet.create({
+    text: {
+        color: "#fff",
+    },
+    message: {
+        color: "#fff",
+        fontSize: 18,
+        fontWeight: "bold",
+    },
+    messageContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 16,
+    }
+})
