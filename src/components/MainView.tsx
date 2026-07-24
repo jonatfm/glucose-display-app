@@ -1,7 +1,9 @@
 import { View } from "react-native";
 
-export default function MainView() {
+export default function MainView({ children }: { children: React.ReactNode }) {
     return (
-        <View></View>
+        <View>
+            {children}
+        </View>
     )
 }
