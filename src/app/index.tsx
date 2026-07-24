@@ -37,7 +37,7 @@ function AppContent() {
         return (
             <View style={styles.messageContainer}>
                 <Text style={styles.message}>Loading configuration...</Text>
-                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
+                <Text style={styles.text}>Hold the screen to go to settings</Text>
             </View>
         );
     }
@@ -46,7 +46,7 @@ function AppContent() {
         return (
             <View style={styles.messageContainer}>
                 <Text style={styles.message}>No glucose source configured!</Text>
-                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
+                <Text style={styles.text}>Hold the screen to go to settings</Text>
             </View>
         )
     }
@@ -55,7 +55,7 @@ function AppContent() {
         return (
             <View style={styles.messageContainer}>
                 <Text style={styles.message}>Connecting...</Text>
-                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
+                <Text style={styles.text}>Hold the screen to go to settings</Text>
             </View>
         )
     }
@@ -64,7 +64,7 @@ function AppContent() {
         return (
             <View style={styles.messageContainer}>
                 <Text style={[styles.message, {color: "#ff0000"}]}>{error ?? "No glucose reading available"}</Text>
-                <Text style={styles.text}>Hold the screen for 2 seconds to go to settings</Text>
+                <Text style={styles.text}>Hold the screen to go to settings</Text>
             </View>
         )
     }
