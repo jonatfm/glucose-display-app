@@ -1,7 +1,7 @@
 import type { GlucoseReading } from "../glucose/types";
 
 export type ReadingRequest = {
-    historyHours: number;
+    historySeconds: number;
     signal: AbortSignal;
 }
 

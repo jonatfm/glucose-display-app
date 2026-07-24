@@ -5,9 +5,9 @@ import { parseXdripReadings } from "./xdripParser";
 export function createXdripConnector(
     config: XdripSourceConfig,
 ) : GlucoseConnector {
-    const createUrl = (historyHours: number) => {
-        const count = Math.ceil(historyHours * 12) + 1;
-        const url = new URL("/sgv.son", config.baseUrl);
+    const createUrl = (historySeconds: number) => {
+        const count = Math.ceil(historySeconds / 300) + 1;
+        const url = new URL("/sgv.json", config.baseUrl);
 
         url.searchParams.set("count", String(count));
 
@@ -15,8 +15,8 @@ export function createXdripConnector(
     };
 
     return {
-        async getReadings({historyHours, signal}) {
-            const response = await fetch(createUrl(historyHours), {
+        async getReadings({historySeconds, signal}) {
+            const response = await fetch(createUrl(historySeconds), {
                 headers: {
                     Accept: "application/json",
                 },
@@ -39,7 +39,7 @@ export function createXdripConnector(
 
         async testConnection(signal) {
             await this.getReadings({
-                historyHours: 0.5,
+                historySeconds: 1800, // 30 minutes
                 signal,
             });
         },

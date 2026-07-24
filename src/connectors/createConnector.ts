@@ -1,6 +1,6 @@
 import { SourceConfig } from "../config/types";
 import { GlucoseConnector } from "./types";
-import { createXdripConnector } from "./xdrip/XdripConnector";
+import { createXdripConnector } from "./xdrip/xdripConnector";
 
 export function createConnector(
     config: SourceConfig,
