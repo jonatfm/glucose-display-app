@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import SettingsForm, { type SettingsFormHandle } from "./SettingsForm";
 
 const SETTINGS_LONG_PRESS_DELAY_MS = 1_000;
 
 export default function MainView({ children }: { children: React.ReactNode }) {
     const [areSettingsVisible, setAreSettingsVisible] = useState(false);
+    const settingsFormRef = useRef<SettingsFormHandle>(null);
 
     const closeSettings = () => setAreSettingsVisible(false);
 
@@ -45,7 +47,24 @@ export default function MainView({ children }: { children: React.ReactNode }) {
                             </Pressable>
                         </View>
 
-                        <View style={styles.modalContent} />
+                        <View style={styles.modalContent}>
+                            <SettingsForm
+                                ref={settingsFormRef}
+                                onFinished={closeSettings}
+                                visible={areSettingsVisible}
+                            />
+                        </View>
+                        <View style={styles.modalFooter}>
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => {
+                                    void settingsFormRef.current?.save();
+                                }}
+                                style={styles.saveButton}
+                            >
+                                <Text style={styles.saveButtonText}>Save configuration</Text>
+                            </Pressable>
+                        </View>
                     </View>
                 </SafeAreaView>
             </Modal>
@@ -84,6 +103,15 @@ const styles = StyleSheet.create({
         borderBottomWidth: StyleSheet.hairlineWidth,
         paddingHorizontal: 24,
     },
+    modalFooter: {
+        minHeight: 72,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        borderTopColor: "#333",
+        borderTopWidth: StyleSheet.hairlineWidth,
+        paddingHorizontal: 24,
+    },
     modalTitle: {
         color: "#fff",
         fontSize: 28,
@@ -100,6 +128,20 @@ const styles = StyleSheet.create({
         fontSize: 40,
         fontWeight: "300",
         lineHeight: 44,
+    },
+    saveButton: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 8,
+        backgroundColor: "#fff",
+    },
+    saveButtonText: {
+        color: "#000",
+        fontSize: 16,
+        fontWeight: "600",
     },
     modalContent: {
         flex: 1,
