@@ -1,9 +1,18 @@
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function MainView({ children }: { children: React.ReactNode }) {
     return (
-        <View>
+        <SafeAreaView style={styles.container}>
             {children}
-        </View>
+        </SafeAreaView>
     )
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: "#000",
+        padding: 16,
+    }
+})
