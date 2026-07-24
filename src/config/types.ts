@@ -1,9 +1,13 @@
+export type NoSourceConfig = {
+    type: "none";
+}
+
 export type XdripSourceConfig = {
     type: "xdrip";
     baseUrl: string;
 }
 
-export type SourceConfig = XdripSourceConfig;
+export type SourceConfig = NoSourceConfig | XdripSourceConfig;
 
 export type AppConfig = {
     schemaVersion: 1,

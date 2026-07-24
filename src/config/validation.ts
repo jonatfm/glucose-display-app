@@ -1,4 +1,4 @@
-import { AppConfig } from "./types";
+import type { AppConfig } from "./types";
 
 const isObject = (
     value: unknown,
@@ -14,17 +14,25 @@ export const isAppConfig = (
 
     const {source, polling, display} = value;
 
+    const isValidSource =
+        isObject(source) &&
+        (
+            source.type === "none" ||
+            (
+                source.type === "xdrip" &&
+                typeof source.baseUrl === "string"
+            )
+        );
+
     return (
         value.schemaVersion === 1 &&
-        isObject(source) &&
-        source.type === "xdrip" &&
-        typeof source.baseUrl === "string" &&
+        isValidSource &&
         isObject(polling) &&
         typeof polling.intervalSeconds === "number" &&
         typeof polling.staleAfterSeconds === "number" &&
         typeof polling.historySeconds === "number" &&
         isObject(display) &&
-        (display.unit === "mg/dl" ||
+        (display.unit === "mg/dL" ||
             display.unit === "mmol/L") &&
         typeof display.keepScreenAwake === "boolean" &&
         typeof display.hideSystemUi === "boolean"

@@ -1,10 +1,14 @@
-import type {AppConfig} from "./types";
+import type {AppConfig, XdripSourceConfig} from "./types";
+
+export const DEFAULT_XDRIP_SOURCE_CONFIG = {
+    type: "xdrip",
+    baseUrl: "http://127.0.0.1:17580",
+} satisfies XdripSourceConfig;
 
 export const DEFAULT_APP_CONFIG = {
     schemaVersion: 1,
     source: {
-        type: "xdrip",
-        baseUrl: "http://127.0.0.1:17580"
+        type: "none",
     },
     polling: {
         intervalSeconds: 5,
