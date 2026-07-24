@@ -238,16 +238,27 @@ function SourceButton({
                 active && styles.sourceButtonActive,
             ]}
         >
-            <Text style={styles.buttonText}>{label}</Text>
+            <Text
+                style={[
+                    styles.buttonText,
+                    active && styles.primaryButtonText,
+                ]}
+            >
+                {label}
+            </Text>
         </Pressable>
     )
 }
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1
+        flex: 1,
+        gap: 24,
+        padding: 24,
     },
-    field: {},
+    field: {
+        gap: 12,
+    },
     label: {
         color: "#fff",
         fontSize: 16,
@@ -259,28 +270,50 @@ const styles = StyleSheet.create({
     },
     sourceButton: {
         backgroundColor: "#444",
+        borderRadius: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
     },
     sourceButtonActive: {
         backgroundColor: "#fff",
     },
-    input: {},
+    input: {
+        backgroundColor: "#111",
+        borderColor: "#555",
+        borderRadius: 8,
+        borderWidth: 1,
+        color: "#fff",
+        fontSize: 16,
+        padding: 12,
+    },
     actions: {
         flexDirection: "row",
+        gap: 12,
         justifyContent: "flex-end",
         marginTop: "auto",
     },
     primaryButton: {
         backgroundColor: "#fff",
+        borderRadius: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
     },
     secondaryButton: {
         backgroundColor: "#444",
+        borderRadius: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
     },
     buttonText: {
-        color: "#000",
+        color: "#fff",
         fontSize: 16,
         fontWeight: "bold",
     },
+    primaryButtonText: {
+        color: "#000",
+    },
     feedback: {
         color: "#ccc",
+        fontSize: 15,
     }
 })
