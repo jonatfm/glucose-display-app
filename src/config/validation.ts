@@ -1,4 +1,5 @@
 import type { AppConfig } from "./types";
+import { getGlucoseRangeIssues } from "./glucoseRanges";
 
 const isObject = (
     value: unknown,
@@ -34,7 +35,7 @@ export const isAppConfig = (
             )
         );
 
-    return (
+    const hasValidShape = (
         value.schemaVersion === 1 &&
         isValidSource &&
         isObject(polling) &&
@@ -60,4 +61,13 @@ export const isAppConfig = (
         isPositiveNumber(graph.aspectRatio) &&
         isPositiveInteger(graph.historySeconds)
     );
+
+    if (!hasValidShape) {
+        return false;
+    }
+
+    return getGlucoseRangeIssues(
+        display as AppConfig["display"],
+        graph as AppConfig["graph"],
+    ).length === 0;
 };

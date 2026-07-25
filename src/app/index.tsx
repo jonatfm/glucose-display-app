@@ -8,21 +8,13 @@ import { useKeepAwake } from "expo-keep-awake";
 import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import GlucoseGraph from "../components/GlucoseGraph";
+import { formatGlucose } from "../glucose/units";
 
 const DISPLAY_JUSTIFY_CONTENT = {
     top: "flex-start",
     middle: "center",
     bottom: "flex-end",
 } as const;
-
-function formatGlucose(
-    valueMgDl: number,
-    unit: "mg/dL" | "mmol/L"
-) {
-    return unit === "mmol/L"
-        ? (valueMgDl / 18).toFixed(1)
-        : String(Math.round(valueMgDl));
-}
 
 function KeepScreenAwake() {
     useKeepAwake();
@@ -152,7 +144,8 @@ function AppContent() {
                             {Math.floor(ageSeconds / 60)}m
                         </Text>
                     ) : null}
-                    {config.display.showDelta && latestReading.deltaMgDl ? (
+                    {config.display.showDelta &&
+                    latestReading.deltaMgDl !== null ? (
                         <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
                             Δ {latestReading.deltaMgDl >= 0 ? '+' : ''}{formatGlucose(
                                 latestReading.deltaMgDl,

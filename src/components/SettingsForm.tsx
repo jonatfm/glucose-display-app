@@ -8,7 +8,16 @@ import {
 import { useAppConfig } from "../config/AppConfigProvider";
 import { AppConfig, SourceConfig } from "../config/types";
 import { DEFAULT_APP_CONFIG, DEFAULT_XDRIP_SOURCE_CONFIG } from "../config/defaults";
+import {
+    getGlucoseRangeIssues,
+    type GlucoseRangeIssue,
+} from "../config/glucoseRanges";
 import { createConnector } from "../connectors/createConnector";
+import {
+    formatGlucoseInput,
+    glucoseValueToMgDl,
+    type GlucoseUnit,
+} from "../glucose/units";
 import {
     Pressable,
     ScrollView,
@@ -75,18 +84,23 @@ const createPollingDraft = (
 
 const createDisplayNumberDraft = (
     display: AppConfig["display"],
+    unit: GlucoseUnit,
 ): DisplayNumberDraft => ({
     textSize: display.textSize.toString(),
-    highThreshold: display.highThreshold.toString(),
-    lowThreshold: display.lowThreshold.toString(),
-    criticalLowThreshold: display.criticalLowThreshold.toString(),
+    highThreshold: formatGlucoseInput(display.highThreshold, unit),
+    lowThreshold: formatGlucoseInput(display.lowThreshold, unit),
+    criticalLowThreshold: formatGlucoseInput(
+        display.criticalLowThreshold,
+        unit,
+    ),
 });
 
 const createGraphNumberDraft = (
     graph: AppConfig["graph"],
+    unit: GlucoseUnit,
 ): GraphNumberDraft => ({
-    ceiling: graph.ceiling.toString(),
-    floor: graph.floor.toString(),
+    ceiling: formatGlucoseInput(graph.ceiling, unit),
+    floor: formatGlucoseInput(graph.floor, unit),
     aspectRatio: graph.aspectRatio.toString(),
     historyHours: (graph.historySeconds / 3600).toString(),
 });
@@ -154,6 +168,7 @@ const validatePollingDraft = (
 
 const validateDisplayNumberDraft = (
     draft: DisplayNumberDraft,
+    unit: GlucoseUnit,
 ): {
     errors: DisplayNumberErrors;
     values: Record<DisplayNumberField, number> | null;
@@ -161,18 +176,38 @@ const validateDisplayNumberDraft = (
     const errors: DisplayNumberErrors = {};
     const values = {} as Record<DisplayNumberField, number>;
 
-    for (const field of Object.keys(
-        DISPLAY_NUMBER_FIELD_NAMES,
-    ) as DisplayNumberField[]) {
+    try {
+        values.textSize = parsePositiveWholeNumber(
+            draft.textSize,
+            DISPLAY_NUMBER_FIELD_NAMES.textSize,
+        );
+    } catch (error) {
+        errors.textSize = error instanceof Error
+            ? error.message
+            : "Enter a valid whole number";
+    }
+
+    for (const field of [
+        "highThreshold",
+        "lowThreshold",
+        "criticalLowThreshold",
+    ] as const) {
         try {
-            values[field] = parsePositiveWholeNumber(
-                draft[field],
-                DISPLAY_NUMBER_FIELD_NAMES[field],
-            );
+            const value = unit === "mmol/L"
+                ? parsePositiveFloat(
+                    draft[field],
+                    DISPLAY_NUMBER_FIELD_NAMES[field],
+                )
+                : parsePositiveWholeNumber(
+                    draft[field],
+                    DISPLAY_NUMBER_FIELD_NAMES[field],
+                );
+
+            values[field] = glucoseValueToMgDl(value, unit);
         } catch (error) {
             errors[field] = error instanceof Error
                 ? error.message
-                : "Enter a valid whole number";
+                : `Enter a valid value in ${unit}`;
         }
     }
 
@@ -186,7 +221,7 @@ const parsePositiveFloat = (
     text: string,
     fieldName: string,
 ): number => {
-    const trimmed = text.trim();
+    const trimmed = text.trim().replace(",", ".");
 
     if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) {
         throw new Error(`${fieldName} must be a number`);
@@ -203,29 +238,37 @@ const parsePositiveFloat = (
 
 const validateGraphNumberDraft = (
     draft: GraphNumberDraft,
+    unit: GlucoseUnit,
 ): {
     errors: GraphNumberErrors;
     graph: Omit<AppConfig["graph"], "show"> | null;
 } => {
     const errors: GraphNumberErrors = {};
-    const parseWholeNumber = (
+    const parseGlucoseValue = (
         field: "ceiling" | "floor",
     ): number | undefined => {
         try {
-            return parsePositiveWholeNumber(
-                draft[field],
-                GRAPH_NUMBER_FIELD_NAMES[field],
-            );
+            const value = unit === "mmol/L"
+                ? parsePositiveFloat(
+                    draft[field],
+                    GRAPH_NUMBER_FIELD_NAMES[field],
+                )
+                : parsePositiveWholeNumber(
+                    draft[field],
+                    GRAPH_NUMBER_FIELD_NAMES[field],
+                );
+
+            return glucoseValueToMgDl(value, unit);
         } catch (error) {
             errors[field] = error instanceof Error
                 ? error.message
-                : "Enter a valid whole number";
+                : `Enter a valid value in ${unit}`;
             return undefined;
         }
     };
 
-    const ceiling = parseWholeNumber("ceiling");
-    const floor = parseWholeNumber("floor");
+    const ceiling = parseGlucoseValue("ceiling");
+    const floor = parseGlucoseValue("floor");
     let aspectRatio: number | undefined;
     let historyHours: number | undefined;
     let historySeconds: number | undefined;
@@ -285,6 +328,39 @@ const validateGraphNumberDraft = (
     };
 };
 
+const addGlucoseRangeError = (
+    issue: GlucoseRangeIssue,
+    displayErrors: DisplayNumberErrors,
+    graphErrors: GraphNumberErrors,
+) => {
+    switch (issue) {
+        case "critical-above-low":
+            displayErrors.criticalLowThreshold =
+                "Critical low threshold must not exceed the low threshold";
+            displayErrors.lowThreshold =
+                "Low threshold must not be below the critical low threshold";
+            break;
+        case "low-not-below-high":
+            displayErrors.lowThreshold =
+                "Low threshold must be below the high threshold";
+            displayErrors.highThreshold =
+                "High threshold must be above the low threshold";
+            break;
+        case "floor-not-below-critical":
+            graphErrors.floor =
+                "Graph floor must be below the critical low threshold";
+            displayErrors.criticalLowThreshold =
+                "Critical low threshold must be above the graph floor";
+            break;
+        case "high-not-below-ceiling":
+            displayErrors.highThreshold =
+                "High threshold must be below the graph ceiling";
+            graphErrors.ceiling =
+                "Graph ceiling must be above the high threshold";
+            break;
+    }
+};
+
 const parseXdripSource = (
     baseUrl: string,
 ): SourceConfig => {
@@ -335,7 +411,7 @@ function SettingsForm({
     const [displayShowDelta, setDisplayShowDelta] = useState(config.display.showDelta);
     const [displayNumberDraft, setDisplayNumberDraft] =
         useState<DisplayNumberDraft>(
-            createDisplayNumberDraft(config.display),
+            createDisplayNumberDraft(config.display, config.display.unit),
         );
     const [displayNumberErrors, setDisplayNumberErrors] =
         useState<DisplayNumberErrors>({});
@@ -345,7 +421,7 @@ function SettingsForm({
     const [graphShow, setGraphShow] = useState(config.graph.show);
     const [graphNumberDraft, setGraphNumberDraft] =
         useState<GraphNumberDraft>(
-            createGraphNumberDraft(config.graph),
+            createGraphNumberDraft(config.graph, config.display.unit),
         );
     const [graphNumberErrors, setGraphNumberErrors] =
         useState<GraphNumberErrors>({});
@@ -369,11 +445,15 @@ function SettingsForm({
         setDisplayHideSystemUi(config.display.hideSystemUi);
         setDisplayShowAge(config.display.showAge);
         setDisplayShowDelta(config.display.showDelta);
-        setDisplayNumberDraft(createDisplayNumberDraft(config.display));
+        setDisplayNumberDraft(
+            createDisplayNumberDraft(config.display, config.display.unit),
+        );
         setDisplayNumberErrors({});
         setDisplayAlign(config.display.align);
         setGraphShow(config.graph.show);
-        setGraphNumberDraft(createGraphNumberDraft(config.graph));
+        setGraphNumberDraft(
+            createGraphNumberDraft(config.graph, config.display.unit),
+        );
         setGraphNumberErrors({});
         setConnectionFeedback(null);
     }, [config.display, config.polling, config.source, config.graph, visible]);
@@ -452,11 +532,31 @@ function SettingsForm({
         field: DisplayNumberField,
     ) => {
         try {
-            const value = parsePositiveWholeNumber(
-                displayNumberDraft[field],
-                DISPLAY_NUMBER_FIELD_NAMES[field],
+            if (field === "textSize") {
+                const value = parsePositiveWholeNumber(
+                    displayNumberDraft[field],
+                    DISPLAY_NUMBER_FIELD_NAMES[field],
+                );
+                updateDisplayNumberField(field, value.toString());
+                return;
+            }
+
+            const value = displayUnit === "mmol/L"
+                ? parsePositiveFloat(
+                    displayNumberDraft[field],
+                    DISPLAY_NUMBER_FIELD_NAMES[field],
+                )
+                : parsePositiveWholeNumber(
+                    displayNumberDraft[field],
+                    DISPLAY_NUMBER_FIELD_NAMES[field],
+                );
+            updateDisplayNumberField(
+                field,
+                formatGlucoseInput(
+                    glucoseValueToMgDl(value, displayUnit),
+                    displayUnit,
+                ),
             );
-            updateDisplayNumberField(field, value.toString());
         } catch (error) {
             setDisplayNumberErrors((current) => ({
                 ...current,
@@ -490,16 +590,30 @@ function SettingsForm({
         field: GraphNumberField,
     ) => {
         try {
-            const value = field === "aspectRatio" ||
-                field === "historyHours"
-                ? parsePositiveFloat(
-                    graphNumberDraft[field],
-                    GRAPH_NUMBER_FIELD_NAMES[field],
-                )
-                : parsePositiveWholeNumber(
-                    graphNumberDraft[field],
-                    GRAPH_NUMBER_FIELD_NAMES[field],
+            if (field === "ceiling" || field === "floor") {
+                const value = displayUnit === "mmol/L"
+                    ? parsePositiveFloat(
+                        graphNumberDraft[field],
+                        GRAPH_NUMBER_FIELD_NAMES[field],
+                    )
+                    : parsePositiveWholeNumber(
+                        graphNumberDraft[field],
+                        GRAPH_NUMBER_FIELD_NAMES[field],
+                    );
+                updateGraphNumberField(
+                    field,
+                    formatGlucoseInput(
+                        glucoseValueToMgDl(value, displayUnit),
+                        displayUnit,
+                    ),
                 );
+                return;
+            }
+
+            const value = parsePositiveFloat(
+                graphNumberDraft[field],
+                GRAPH_NUMBER_FIELD_NAMES[field],
+            );
             updateGraphNumberField(field, value.toString());
         } catch (error) {
             setGraphNumberErrors((current) => ({
@@ -509,6 +623,58 @@ function SettingsForm({
                     : "Enter a valid number",
             }));
         }
+    };
+
+    const changeDisplayUnit = (nextUnit: GlucoseUnit) => {
+        if (nextUnit === displayUnit) {
+            return;
+        }
+
+        const convertDraftValue = (
+            text: string,
+            fieldName: string,
+        ): string => {
+            try {
+                const value = parsePositiveFloat(text, fieldName);
+                const valueMgDl = glucoseValueToMgDl(
+                    value,
+                    displayUnit,
+                );
+                return formatGlucoseInput(valueMgDl, nextUnit);
+            } catch {
+                return text;
+            }
+        };
+
+        setDisplayNumberDraft((current) => ({
+            ...current,
+            highThreshold: convertDraftValue(
+                current.highThreshold,
+                DISPLAY_NUMBER_FIELD_NAMES.highThreshold,
+            ),
+            lowThreshold: convertDraftValue(
+                current.lowThreshold,
+                DISPLAY_NUMBER_FIELD_NAMES.lowThreshold,
+            ),
+            criticalLowThreshold: convertDraftValue(
+                current.criticalLowThreshold,
+                DISPLAY_NUMBER_FIELD_NAMES.criticalLowThreshold,
+            ),
+        }));
+        setGraphNumberDraft((current) => ({
+            ...current,
+            ceiling: convertDraftValue(
+                current.ceiling,
+                GRAPH_NUMBER_FIELD_NAMES.ceiling,
+            ),
+            floor: convertDraftValue(
+                current.floor,
+                GRAPH_NUMBER_FIELD_NAMES.floor,
+            ),
+        }));
+        setDisplayNumberErrors({});
+        setGraphNumberErrors({});
+        setDisplayUnit(nextUnit);
     };
 
     const testConnection = async () => {
@@ -552,15 +718,35 @@ function SettingsForm({
         const {
             errors: displayErrors,
             values: displayNumbers,
-        } = validateDisplayNumberDraft(displayNumberDraft);
+        } = validateDisplayNumberDraft(displayNumberDraft, displayUnit);
         const {
             errors: graphErrors,
             graph,
-        } = validateGraphNumberDraft(graphNumberDraft);
+        } = validateGraphNumberDraft(graphNumberDraft, displayUnit);
+
+        if (displayNumbers !== null && graph !== null) {
+            for (const issue of getGlucoseRangeIssues(
+                {
+                    criticalLowThreshold:
+                        displayNumbers.criticalLowThreshold,
+                    lowThreshold: displayNumbers.lowThreshold,
+                    highThreshold: displayNumbers.highThreshold,
+                },
+                graph,
+            )) {
+                addGlucoseRangeError(
+                    issue,
+                    displayErrors,
+                    graphErrors,
+                );
+            }
+        }
 
         if (polling === null ||
             displayNumbers === null ||
-            graph === null) {
+            graph === null ||
+            Object.keys(displayErrors).length > 0 ||
+            Object.keys(graphErrors).length > 0) {
             setPollingErrors(errors);
             setDisplayNumberErrors(displayErrors);
             setGraphNumberErrors(graphErrors);
@@ -718,12 +904,12 @@ function SettingsForm({
                         <SourceButton
                             active={displayUnit === "mg/dL"}
                             label="mg/dL"
-                            onPress={() => setDisplayUnit("mg/dL")}
+                            onPress={() => changeDisplayUnit("mg/dL")}
                         />
                         <SourceButton
                             active={displayUnit === "mmol/L"}
                             label="mmol/L"
-                            onPress={() => setDisplayUnit("mmol/L")}
+                            onPress={() => changeDisplayUnit("mmol/L")}
                         />
                     </View>
                 </View>
@@ -793,9 +979,13 @@ function SettingsForm({
                 />
 
                 <NumericSettingField
+                    accessibilityHint={`Enter a positive glucose value in ${displayUnit}`}
                     error={displayNumberErrors.highThreshold}
-                    hint="The glucose value above which the reading is considered high and appears in yellow."
-                    label="High threshold"
+                    hint={`Readings at or above this ${displayUnit} value appear in yellow.`}
+                    inputMode={displayUnit === "mmol/L"
+                        ? "decimal"
+                        : "numeric"}
+                    label={`High threshold (${displayUnit})`}
                     onBlur={() =>
                         normalizeDisplayNumberField("highThreshold")}
                     onChangeText={(text) =>
@@ -803,28 +993,42 @@ function SettingsForm({
                             "highThreshold",
                             text,
                         )}
-                    placeholder={DEFAULT_APP_CONFIG.display.highThreshold.toString()}
+                    placeholder={formatGlucoseInput(
+                        DEFAULT_APP_CONFIG.display.highThreshold,
+                        displayUnit,
+                    )}
                     value={displayNumberDraft.highThreshold}
                 />
 
                 <NumericSettingField
+                    accessibilityHint={`Enter a positive glucose value in ${displayUnit}`}
                     error={displayNumberErrors.lowThreshold}
-                    hint="The glucose value below which the reading is considered low and appears in red."
-                    label="Low threshold"
+                    hint={`Readings at or below this ${displayUnit} value appear in red.`}
+                    inputMode={displayUnit === "mmol/L"
+                        ? "decimal"
+                        : "numeric"}
+                    label={`Low threshold (${displayUnit})`}
                     onBlur={() =>
                         normalizeDisplayNumberField("lowThreshold")}
                     onChangeText={(text) =>
                         updateDisplayNumberField("lowThreshold", text)}
-                    placeholder={DEFAULT_APP_CONFIG.display.lowThreshold.toString()}
+                    placeholder={formatGlucoseInput(
+                        DEFAULT_APP_CONFIG.display.lowThreshold,
+                        displayUnit,
+                    )}
                     value={displayNumberDraft.lowThreshold}
                 />
 
                 <NumericSettingField
+                    accessibilityHint={`Enter a positive glucose value in ${displayUnit}`}
                     error={
                         displayNumberErrors.criticalLowThreshold
                     }
-                    hint="The glucose value below which the reading is considered critically low and the background turns red."
-                    label="Critical low threshold"
+                    hint={`Readings at or below this ${displayUnit} value use the critical-low background.`}
+                    inputMode={displayUnit === "mmol/L"
+                        ? "decimal"
+                        : "numeric"}
+                    label={`Critical low threshold (${displayUnit})`}
                     onBlur={() =>
                         normalizeDisplayNumberField(
                             "criticalLowThreshold",
@@ -834,7 +1038,10 @@ function SettingsForm({
                             "criticalLowThreshold",
                             text,
                         )}
-                    placeholder={DEFAULT_APP_CONFIG.display.criticalLowThreshold.toString()}
+                    placeholder={formatGlucoseInput(
+                        DEFAULT_APP_CONFIG.display.criticalLowThreshold,
+                        displayUnit,
+                    )}
                     value={displayNumberDraft.criticalLowThreshold}
                 />
             </View>
@@ -851,24 +1058,38 @@ function SettingsForm({
                 {graphShow ? (
                     <>
                         <NumericSettingField
+                            accessibilityHint={`Enter a positive glucose value in ${displayUnit}`}
                             error={graphNumberErrors.ceiling}
-                            hint="The highest glucose value shown on the graph."
-                            label="Ceiling"
+                            hint={`The highest ${displayUnit} value shown on the graph.`}
+                            inputMode={displayUnit === "mmol/L"
+                                ? "decimal"
+                                : "numeric"}
+                            label={`Ceiling (${displayUnit})`}
                             onBlur={() => normalizeGraphNumberField("ceiling")}
                             onChangeText={(text) =>
                                 updateGraphNumberField("ceiling", text)}
-                            placeholder={DEFAULT_APP_CONFIG.graph.ceiling.toString()}
+                            placeholder={formatGlucoseInput(
+                                DEFAULT_APP_CONFIG.graph.ceiling,
+                                displayUnit,
+                            )}
                             value={graphNumberDraft.ceiling}
                         />
 
                         <NumericSettingField
+                            accessibilityHint={`Enter a positive glucose value in ${displayUnit}`}
                             error={graphNumberErrors.floor}
-                            hint="The lowest glucose value shown on the graph."
-                            label="Floor"
+                            hint={`The lowest ${displayUnit} value shown on the graph.`}
+                            inputMode={displayUnit === "mmol/L"
+                                ? "decimal"
+                                : "numeric"}
+                            label={`Floor (${displayUnit})`}
                             onBlur={() => normalizeGraphNumberField("floor")}
                             onChangeText={(text) =>
                                 updateGraphNumberField("floor", text)}
-                            placeholder={DEFAULT_APP_CONFIG.graph.floor.toString()}
+                            placeholder={formatGlucoseInput(
+                                DEFAULT_APP_CONFIG.graph.floor,
+                                displayUnit,
+                            )}
                             value={graphNumberDraft.floor}
                         />
 
