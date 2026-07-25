@@ -821,55 +821,59 @@ function SettingsForm({
                     value={graphShow}
                 />
 
-                <NumericSettingField
-                    error={graphNumberErrors.ceiling}
-                    hint="The highest glucose value shown on the graph."
-                    label="Ceiling"
-                    onBlur={() => normalizeGraphNumberField("ceiling")}
-                    onChangeText={(text) =>
-                        updateGraphNumberField("ceiling", text)}
-                    placeholder={DEFAULT_APP_CONFIG.graph.ceiling.toString()}
-                    value={graphNumberDraft.ceiling}
-                />
+                {graphShow ? (
+                    <>
+                        <NumericSettingField
+                            error={graphNumberErrors.ceiling}
+                            hint="The highest glucose value shown on the graph."
+                            label="Ceiling"
+                            onBlur={() => normalizeGraphNumberField("ceiling")}
+                            onChangeText={(text) =>
+                                updateGraphNumberField("ceiling", text)}
+                            placeholder={DEFAULT_APP_CONFIG.graph.ceiling.toString()}
+                            value={graphNumberDraft.ceiling}
+                        />
 
-                <NumericSettingField
-                    error={graphNumberErrors.floor}
-                    hint="The lowest glucose value shown on the graph."
-                    label="Floor"
-                    onBlur={() => normalizeGraphNumberField("floor")}
-                    onChangeText={(text) =>
-                        updateGraphNumberField("floor", text)}
-                    placeholder={DEFAULT_APP_CONFIG.graph.floor.toString()}
-                    value={graphNumberDraft.floor}
-                />
+                        <NumericSettingField
+                            error={graphNumberErrors.floor}
+                            hint="The lowest glucose value shown on the graph."
+                            label="Floor"
+                            onBlur={() => normalizeGraphNumberField("floor")}
+                            onChangeText={(text) =>
+                                updateGraphNumberField("floor", text)}
+                            placeholder={DEFAULT_APP_CONFIG.graph.floor.toString()}
+                            value={graphNumberDraft.floor}
+                        />
 
-                <NumericSettingField
-                    accessibilityHint="Enter a positive decimal number"
-                    error={graphNumberErrors.aspectRatio}
-                    hint="The graph width divided by its height."
-                    inputMode="decimal"
-                    label="Aspect ratio"
-                    onBlur={() =>
-                        normalizeGraphNumberField("aspectRatio")}
-                    onChangeText={(text) =>
-                        updateGraphNumberField("aspectRatio", text)}
-                    placeholder={DEFAULT_APP_CONFIG.graph.aspectRatio.toString()}
-                    value={graphNumberDraft.aspectRatio}
-                />
+                        <NumericSettingField
+                            accessibilityHint="Enter a positive decimal number"
+                            error={graphNumberErrors.aspectRatio}
+                            hint="The graph width divided by its height."
+                            inputMode="decimal"
+                            label="Aspect ratio"
+                            onBlur={() =>
+                                normalizeGraphNumberField("aspectRatio")}
+                            onChangeText={(text) =>
+                                updateGraphNumberField("aspectRatio", text)}
+                            placeholder={DEFAULT_APP_CONFIG.graph.aspectRatio.toString()}
+                            value={graphNumberDraft.aspectRatio}
+                        />
 
-                <NumericSettingField
-                    accessibilityHint="Enter a positive number of hours"
-                    error={graphNumberErrors.historyHours}
-                    hint="How many hours of recent data are shown and requested for the graph."
-                    inputMode="decimal"
-                    label="History window (hours)"
-                    onBlur={() =>
-                        normalizeGraphNumberField("historyHours")}
-                    onChangeText={(text) =>
-                        updateGraphNumberField("historyHours", text)}
-                    placeholder={(DEFAULT_APP_CONFIG.graph.historySeconds / 3600).toString()}
-                    value={graphNumberDraft.historyHours}
-                />
+                        <NumericSettingField
+                            accessibilityHint="Enter a positive number of hours"
+                            error={graphNumberErrors.historyHours}
+                            hint="How many hours of recent data are shown and requested for the graph."
+                            inputMode="decimal"
+                            label="History window (hours)"
+                            onBlur={() =>
+                                normalizeGraphNumberField("historyHours")}
+                            onChangeText={(text) =>
+                                updateGraphNumberField("historyHours", text)}
+                            placeholder={(DEFAULT_APP_CONFIG.graph.historySeconds / 3600).toString()}
+                            value={graphNumberDraft.historyHours}
+                        />
+                    </>
+                ) : null}
             </View>
         </ScrollView>
     )

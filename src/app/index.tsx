@@ -7,6 +7,7 @@ import { useGlucoseReadings } from "../glucose/useGlucoseReadings";
 import { useKeepAwake } from "expo-keep-awake";
 import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
+import GlucoseGraph from "../components/GlucoseGraph";
 
 function formatGlucose(
     valueMgDl: number,
@@ -57,6 +58,7 @@ function AppContent() {
         status,
         error,
         now,
+        readings
     } = useGlucoseReadings({
         connector: isLoaded ? connector : null,
         historySeconds: config.graph.historySeconds,
@@ -109,41 +111,47 @@ function AppContent() {
     const isStale = ageSeconds > config.polling.staleAfterSeconds;
 
     return (
-        <View style={[
-            styles.bloodsugarContainer,
-            latestReading.valueMgDl <= config.display.criticalLowThreshold && {backgroundColor: "#ff0000", borderRadius: 16},
-        ]}>
-            <Text
-                style={[
-                    styles.text,
-                    isStale && styles.staleText,
-                    {
-                        fontSize: config.display.textSize,
-                    },
-                    latestReading.valueMgDl >= config.display.highThreshold && {color: "#ffff00"},
-                    latestReading.valueMgDl <= config.display.lowThreshold && latestReading.valueMgDl > config.display.criticalLowThreshold && {color: "#ff0000"},
-                ]}
-            >
-                {formatGlucose(
-                    latestReading.valueMgDl,
-                    config.display.unit,
-                )}
-            </Text>
-            <View style={{flexDirection: "row", gap: config.display.textSize / 3}}>
-                {config.display.showAge ? (
-                    <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
-                        {Math.floor(ageSeconds / 60)}m
-                    </Text>
-                ) : null}
-                {config.display.showDelta && latestReading.deltaMgDl ? (
-                    <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
-                        Δ {latestReading.deltaMgDl >= 0 ? '+' : ''}{formatGlucose(
-                            latestReading.deltaMgDl,
-                            config.display.unit,
-                        )}
-                    </Text>
-                ) : null}
+        <View>
+            <View style={[
+                styles.bloodsugarContainer,
+                latestReading.valueMgDl <= config.display.criticalLowThreshold && {backgroundColor: "#ff0000", borderRadius: 16},
+            ]}>
+                <Text
+                    style={[
+                        styles.text,
+                        isStale && styles.staleText,
+                        {
+                            fontSize: config.display.textSize,
+                        },
+                        latestReading.valueMgDl >= config.display.highThreshold && {color: "#ffff00"},
+                        latestReading.valueMgDl <= config.display.lowThreshold && latestReading.valueMgDl > config.display.criticalLowThreshold && {color: "#ff0000"},
+                    ]}
+                >
+                    {formatGlucose(
+                        latestReading.valueMgDl,
+                        config.display.unit,
+                    )}
+                </Text>
+                <View style={{flexDirection: "row", gap: config.display.textSize / 3}}>
+                    {config.display.showAge ? (
+                        <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
+                            {Math.floor(ageSeconds / 60)}m
+                        </Text>
+                    ) : null}
+                    {config.display.showDelta && latestReading.deltaMgDl ? (
+                        <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
+                            Δ {latestReading.deltaMgDl >= 0 ? '+' : ''}{formatGlucose(
+                                latestReading.deltaMgDl,
+                                config.display.unit,
+                            )}
+                        </Text>
+                    ) : null}
+                </View>
             </View>
+
+            {config.graph.show ? (
+                <GlucoseGraph now={now} readings={readings} />
+            ) : null}
         </View>
     )
 }
