@@ -339,6 +339,7 @@ function SettingsForm({
         );
     const [displayNumberErrors, setDisplayNumberErrors] =
         useState<DisplayNumberErrors>({});
+    const [displayAlign, setDisplayAlign] = useState(config.display.align);
 
     // graph settings
     const [graphShow, setGraphShow] = useState(config.graph.show);
@@ -370,6 +371,7 @@ function SettingsForm({
         setDisplayShowDelta(config.display.showDelta);
         setDisplayNumberDraft(createDisplayNumberDraft(config.display));
         setDisplayNumberErrors({});
+        setDisplayAlign(config.display.align);
         setGraphShow(config.graph.show);
         setGraphNumberDraft(createGraphNumberDraft(config.graph));
         setGraphNumberErrors({});
@@ -588,6 +590,7 @@ function SettingsForm({
                     lowThreshold: displayNumbers.lowThreshold,
                     criticalLowThreshold:
                         displayNumbers.criticalLowThreshold,
+                    align: displayAlign,
                 },
                 graph: {
                     show: graphShow,
@@ -721,6 +724,30 @@ function SettingsForm({
                             active={displayUnit === "mmol/L"}
                             label="mmol/L"
                             onPress={() => setDisplayUnit("mmol/L")}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.field}>
+                    <Text style={styles.label}>Glucose screen alignment</Text>
+                    <View
+                        accessibilityRole="radiogroup"
+                        style={styles.sourceRow}
+                    >
+                        <SourceButton
+                            active={displayAlign === "top"}
+                            label="Top"
+                            onPress={() => setDisplayAlign("top")}
+                        />
+                        <SourceButton
+                            active={displayAlign === "middle"}
+                            label="Middle"
+                            onPress={() => setDisplayAlign("middle")}
+                        />
+                        <SourceButton
+                            active={displayAlign === "bottom"}
+                            label="Bottom"
+                            onPress={() => setDisplayAlign("bottom")}
                         />
                     </View>
                 </View>

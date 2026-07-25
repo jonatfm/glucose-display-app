@@ -24,6 +24,7 @@ export const DEFAULT_APP_CONFIG = {
         highThreshold: 180,
         lowThreshold: 90,
         criticalLowThreshold: 65,
+        align: "bottom",
     },
     graph: {
         show: true,

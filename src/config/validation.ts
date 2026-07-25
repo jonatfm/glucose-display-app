@@ -51,6 +51,7 @@ export const isAppConfig = (
         isPositiveInteger(display.highThreshold) &&
         isPositiveInteger(display.lowThreshold) &&
         isPositiveInteger(display.criticalLowThreshold) &&
+        (display.align === "top" || display.align === "middle" || display.align === "bottom") &&
         isObject(graph) &&
         typeof graph.show === "boolean" &&
         isPositiveInteger(graph.ceiling) &&

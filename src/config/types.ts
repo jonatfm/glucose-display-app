@@ -26,6 +26,7 @@ export type AppConfig = {
         highThreshold: number;
         lowThreshold: number;
         criticalLowThreshold: number;
+        align: "top" | "middle" | "bottom";
     };
     graph: {
         show: boolean;

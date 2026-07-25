@@ -9,6 +9,12 @@ import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import GlucoseGraph from "../components/GlucoseGraph";
 
+const DISPLAY_JUSTIFY_CONTENT = {
+    top: "flex-start",
+    middle: "center",
+    bottom: "flex-end",
+} as const;
+
 function formatGlucose(
     valueMgDl: number,
     unit: "mg/dL" | "mmol/L"
@@ -111,7 +117,15 @@ function AppContent() {
     const isStale = ageSeconds > config.polling.staleAfterSeconds;
 
     return (
-        <View>
+        <View
+            style={[
+                styles.displayContainer,
+                {
+                    justifyContent:
+                        DISPLAY_JUSTIFY_CONTENT[config.display.align],
+                },
+            ]}
+        >
             <View style={[
                 styles.bloodsugarContainer,
                 latestReading.valueMgDl <= config.display.criticalLowThreshold && {backgroundColor: "#ff0000", borderRadius: 16},
@@ -186,6 +200,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         padding: 16,
+    },
+    displayContainer: {
+        flex: 1,
+        marginVertical: 16,
     },
     bloodsugarContainer: {
         padding: 16,
