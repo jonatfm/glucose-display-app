@@ -32,11 +32,25 @@ type SourceType = SourceConfig["type"];
 type PollingField = keyof AppConfig["polling"];
 type PollingDraft = Record<PollingField, string>;
 type PollingErrors = Partial<Record<PollingField, string>>;
+type DisplayNumberField =
+    | "textSize"
+    | "highThreshold"
+    | "lowThreshold"
+    | "criticalLowThreshold";
+type DisplayNumberDraft = Record<DisplayNumberField, string>;
+type DisplayNumberErrors = Partial<Record<DisplayNumberField, string>>;
 
 const POLLING_FIELD_NAMES: Record<PollingField, string> = {
     intervalSeconds: "Polling interval",
     staleAfterSeconds: "Stale threshold",
     historySeconds: "History window",
+};
+
+const DISPLAY_NUMBER_FIELD_NAMES: Record<DisplayNumberField, string> = {
+    textSize: "Text size",
+    highThreshold: "High threshold",
+    lowThreshold: "Low threshold",
+    criticalLowThreshold: "Critical low threshold",
 };
 
 const createPollingDraft = (
@@ -47,20 +61,29 @@ const createPollingDraft = (
     historySeconds: polling.historySeconds.toString(),
 });
 
-const parsePositiveSeconds = (
+const createDisplayNumberDraft = (
+    display: AppConfig["display"],
+): DisplayNumberDraft => ({
+    textSize: display.textSize.toString(),
+    highThreshold: display.highThreshold.toString(),
+    lowThreshold: display.lowThreshold.toString(),
+    criticalLowThreshold: display.criticalLowThreshold.toString(),
+});
+
+const parsePositiveWholeNumber = (
     text: string,
     fieldName: string,
 ): number => {
     const trimmed = text.trim();
 
     if (!/^\d+$/.test(trimmed)) {
-        throw new Error(`${fieldName} must be a whole number of seconds`);
+        throw new Error(`${fieldName} must be a whole number`);
     }
 
     const value = Number(trimmed);
 
     if (!Number.isSafeInteger(value) || value < 1) {
-        throw new Error(`${fieldName} must be at least 1 second`);
+        throw new Error(`${fieldName} must be at least 1`);
     }
 
     return value;
@@ -76,7 +99,7 @@ const validatePollingDraft = (
 
     const parseField = (field: PollingField): number | undefined => {
         try {
-            return parsePositiveSeconds(
+            return parsePositiveWholeNumber(
                 draft[field],
                 POLLING_FIELD_NAMES[field],
             );
@@ -108,6 +131,36 @@ const validatePollingDraft = (
             staleAfterSeconds,
             historySeconds,
         },
+    };
+};
+
+const validateDisplayNumberDraft = (
+    draft: DisplayNumberDraft,
+): {
+    errors: DisplayNumberErrors;
+    values: Record<DisplayNumberField, number> | null;
+} => {
+    const errors: DisplayNumberErrors = {};
+    const values = {} as Record<DisplayNumberField, number>;
+
+    for (const field of Object.keys(
+        DISPLAY_NUMBER_FIELD_NAMES,
+    ) as DisplayNumberField[]) {
+        try {
+            values[field] = parsePositiveWholeNumber(
+                draft[field],
+                DISPLAY_NUMBER_FIELD_NAMES[field],
+            );
+        } catch (error) {
+            errors[field] = error instanceof Error
+                ? error.message
+                : "Enter a valid whole number";
+        }
+    }
+
+    return {
+        errors,
+        values: Object.keys(errors).length === 0 ? values : null,
     };
 };
 
@@ -159,10 +212,12 @@ function SettingsForm({
     const [displayHideSystemUi, setDisplayHideSystemUi] = useState(config.display.hideSystemUi);
     const [displayShowAge, setDisplayShowAge] = useState(config.display.showAge);
     const [displayShowDelta, setDisplayShowDelta] = useState(config.display.showDelta);
-    const [displayTextSize, setDisplayTextSize] = useState(config.display.textSize);
-    const [displayHighThreshold, setDisplayHighThreshold] = useState(config.display.highThreshold);
-    const [displayLowThreshold, setDisplayLowThreshold] = useState(config.display.lowThreshold);
-    const [displayCriticalLowThreshold, setDisplayCriticalLowThreshold] = useState(config.display.criticalLowThreshold);
+    const [displayNumberDraft, setDisplayNumberDraft] =
+        useState<DisplayNumberDraft>(
+            createDisplayNumberDraft(config.display),
+        );
+    const [displayNumberErrors, setDisplayNumberErrors] =
+        useState<DisplayNumberErrors>({});
 
     useEffect(() => {
         if (!visible) {
@@ -183,10 +238,8 @@ function SettingsForm({
         setDisplayHideSystemUi(config.display.hideSystemUi);
         setDisplayShowAge(config.display.showAge);
         setDisplayShowDelta(config.display.showDelta);
-        setDisplayTextSize(config.display.textSize);
-        setDisplayHighThreshold(config.display.highThreshold);
-        setDisplayLowThreshold(config.display.lowThreshold);
-        setDisplayCriticalLowThreshold(config.display.criticalLowThreshold);
+        setDisplayNumberDraft(createDisplayNumberDraft(config.display));
+        setDisplayNumberErrors({});
         setConnectionFeedback(null);
     }, [config.display, config.polling, config.source, visible]);
 
@@ -226,7 +279,7 @@ function SettingsForm({
 
     const normalizePollingField = (field: PollingField) => {
         try {
-            const value = parsePositiveSeconds(
+            const value = parsePositiveWholeNumber(
                 pollingDraft[field],
                 POLLING_FIELD_NAMES[field],
             );
@@ -237,6 +290,44 @@ function SettingsForm({
                 [field]: error instanceof Error
                     ? error.message
                     : "Enter a valid number of seconds",
+            }));
+        }
+    };
+
+    const updateDisplayNumberField = (
+        field: DisplayNumberField,
+        text: string,
+    ) => {
+        setDisplayNumberDraft((current) => ({
+            ...current,
+            [field]: text,
+        }));
+        setDisplayNumberErrors((current) => {
+            if (current[field] === undefined) {
+                return current;
+            }
+
+            const next = {...current};
+            delete next[field];
+            return next;
+        });
+    };
+
+    const normalizeDisplayNumberField = (
+        field: DisplayNumberField,
+    ) => {
+        try {
+            const value = parsePositiveWholeNumber(
+                displayNumberDraft[field],
+                DISPLAY_NUMBER_FIELD_NAMES[field],
+            );
+            updateDisplayNumberField(field, value.toString());
+        } catch (error) {
+            setDisplayNumberErrors((current) => ({
+                ...current,
+                [field]: error instanceof Error
+                    ? error.message
+                    : "Enter a valid whole number",
             }));
         }
     };
@@ -279,13 +370,19 @@ function SettingsForm({
 
         setConnectionFeedback(null);
         const {errors, polling} = validatePollingDraft(pollingDraft);
+        const {
+            errors: displayErrors,
+            values: displayNumbers,
+        } = validateDisplayNumberDraft(displayNumberDraft);
 
-        if (polling === null) {
+        if (polling === null || displayNumbers === null) {
             setPollingErrors(errors);
+            setDisplayNumberErrors(displayErrors);
             return;
         }
 
         setPollingErrors({});
+        setDisplayNumberErrors({});
         setIsWorking(true);
 
         try {
@@ -301,10 +398,11 @@ function SettingsForm({
                     hideSystemUi: displayHideSystemUi,
                     showAge: displayShowAge,
                     showDelta: displayShowDelta,
-                    textSize: displayTextSize,
-                    highThreshold: displayHighThreshold,
-                    lowThreshold: displayLowThreshold,
-                    criticalLowThreshold: displayCriticalLowThreshold,
+                    textSize: displayNumbers.textSize,
+                    highThreshold: displayNumbers.highThreshold,
+                    lowThreshold: displayNumbers.lowThreshold,
+                    criticalLowThreshold:
+                        displayNumbers.criticalLowThreshold,
                 },
             });
 
@@ -477,95 +575,61 @@ function SettingsForm({
                 />
 
                 <NumericSettingField
-                    error={undefined}
+                    error={displayNumberErrors.textSize}
                     hint="The size of the text in the display. Larger values make the text easier to read."
                     label="Text size"
-                    onBlur={() => {
-                        const value = parsePositiveSeconds(
-                            displayTextSize.toString(),
-                            "Text size",
-                        );
-                        setDisplayTextSize(value);
-                    }}
-                    onChangeText={(text) => {
-                        const trimmed = text.trim();
-                        if (/^\d+$/.test(trimmed)) {
-                            setDisplayTextSize(Number(trimmed));
-                        } else {
-                            setDisplayTextSize(0);
-                        }
-                    }}
+                    onBlur={() =>
+                        normalizeDisplayNumberField("textSize")}
+                    onChangeText={(text) =>
+                        updateDisplayNumberField("textSize", text)}
                     placeholder={DEFAULT_APP_CONFIG.display.textSize.toString()}
-                    value={displayTextSize.toString()}
+                    value={displayNumberDraft.textSize}
                 />
 
                 <NumericSettingField
-                    error={undefined}
+                    error={displayNumberErrors.highThreshold}
                     hint="The glucose value above which the reading is considered high and appears in yellow."
                     label="High threshold"
-                    onBlur={() => {
-                        const value = parsePositiveSeconds(
-                            displayHighThreshold.toString(),
-                            "High threshold",
-                        );
-                        setDisplayHighThreshold(value);
-                    }}
-                    onChangeText={(text) => {
-                        const trimmed = text.trim();
-                        if (/^\d+$/.test(trimmed)) {
-                            setDisplayHighThreshold(Number(trimmed));
-                        } else {
-                            setDisplayHighThreshold(0);
-                        }
-                    }}
+                    onBlur={() =>
+                        normalizeDisplayNumberField("highThreshold")}
+                    onChangeText={(text) =>
+                        updateDisplayNumberField(
+                            "highThreshold",
+                            text,
+                        )}
                     placeholder={DEFAULT_APP_CONFIG.display.highThreshold.toString()}
-                    value={displayHighThreshold.toString()}
+                    value={displayNumberDraft.highThreshold}
                 />
 
                 <NumericSettingField
-                    error={undefined}
+                    error={displayNumberErrors.lowThreshold}
                     hint="The glucose value below which the reading is considered low and appears in red."
                     label="Low threshold"
-                    onBlur={() => {
-                        const value = parsePositiveSeconds(
-                            displayLowThreshold.toString(),
-                            "Low threshold",
-                        );
-                        setDisplayLowThreshold(value);
-                    }}
-                    onChangeText={(text) => {
-                        const trimmed = text.trim();
-                        if (/^\d+$/.test(trimmed)) {
-                            setDisplayLowThreshold(Number(trimmed));
-                        } else {
-                            setDisplayLowThreshold(0);
-                        }
-                    }}
+                    onBlur={() =>
+                        normalizeDisplayNumberField("lowThreshold")}
+                    onChangeText={(text) =>
+                        updateDisplayNumberField("lowThreshold", text)}
                     placeholder={DEFAULT_APP_CONFIG.display.lowThreshold.toString()}
-                    value={displayLowThreshold.toString()}
+                    value={displayNumberDraft.lowThreshold}
                 />
 
                 <NumericSettingField
-                    error={undefined}
+                    error={
+                        displayNumberErrors.criticalLowThreshold
+                    }
                     hint="The glucose value below which the reading is considered critically low and the background turns red."
                     label="Critical low threshold"
-                    onBlur={() => {
-                        const value = parsePositiveSeconds(
-                            displayCriticalLowThreshold.toString(),
-                            "Critical low threshold",
-                        );
-                        setDisplayCriticalLowThreshold(value);
-                    }}
-                    onChangeText={(text) => {
-                        const trimmed = text.trim();
-                        if (/^\d+$/.test(trimmed)) {
-                            setDisplayCriticalLowThreshold(Number(trimmed));
-                        } else {
-                            setDisplayCriticalLowThreshold(0);
-                        }
-                    }}
+                    onBlur={() =>
+                        normalizeDisplayNumberField(
+                            "criticalLowThreshold",
+                        )}
+                    onChangeText={(text) =>
+                        updateDisplayNumberField(
+                            "criticalLowThreshold",
+                            text,
+                        )}
                     placeholder={DEFAULT_APP_CONFIG.display.criticalLowThreshold.toString()}
-                    value={displayCriticalLowThreshold.toString()}
+                    value={displayNumberDraft.criticalLowThreshold}
                 />
             </View>
         </ScrollView>
@@ -604,7 +668,6 @@ function NumericSettingField({
                 onChangeText={onChangeText}
                 placeholder={placeholder}
                 placeholderTextColor="#888"
-                selectTextOnFocus
                 style={[
                     styles.input,
                     error !== undefined && styles.inputInvalid,
@@ -618,7 +681,7 @@ function NumericSettingField({
                     error !== undefined && styles.inputError,
                 ]}
             >
-                {error ?? `${hint} Minimum: 1 second.`}
+                {error ?? hint}
             </Text>
         </View>
     );
