@@ -140,9 +140,16 @@ function AppContent() {
                 styles.bloodsugarContainer,
                 latestReading.valueMgDl <= config.display.criticalLowThreshold && {backgroundColor: "#ff0000", borderRadius: 16},
             ]}>
-                <Text style={styles.statusText}>
-                    {displayStatus}
-                </Text>
+                {status !== "online" ? (
+                    <View style={{
+                        backgroundColor: status === "connecting" ? "#ffff00" : "#ff0000",
+                        padding: 8,
+                    }}>
+                        <Text style={[styles.statusText, {fontSize: config.display.textSize / 4}]}>
+                            {displayStatus}
+                        </Text>
+                    </View>
+                ) : null}
                 <Text
                     style={[
                         styles.text,
