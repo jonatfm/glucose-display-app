@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useAppConfig } from "../config/AppConfigProvider";
 import { AppConfig, SourceConfig } from "../config/types";
-import { DEFAULT_XDRIP_SOURCE_CONFIG } from "../config/defaults";
+import { DEFAULT_APP_CONFIG, DEFAULT_XDRIP_SOURCE_CONFIG } from "../config/defaults";
 import { createConnector } from "../connectors/createConnector";
 import {
     Pressable,
@@ -160,6 +160,9 @@ function SettingsForm({
     const [displayShowAge, setDisplayShowAge] = useState(config.display.showAge);
     const [displayShowDelta, setDisplayShowDelta] = useState(config.display.showDelta);
     const [displayTextSize, setDisplayTextSize] = useState(config.display.textSize);
+    const [displayHighThreshold, setDisplayHighThreshold] = useState(config.display.highThreshold);
+    const [displayLowThreshold, setDisplayLowThreshold] = useState(config.display.lowThreshold);
+    const [displayCriticalLowThreshold, setDisplayCriticalLowThreshold] = useState(config.display.criticalLowThreshold);
 
     useEffect(() => {
         if (!visible) {
@@ -181,6 +184,9 @@ function SettingsForm({
         setDisplayShowAge(config.display.showAge);
         setDisplayShowDelta(config.display.showDelta);
         setDisplayTextSize(config.display.textSize);
+        setDisplayHighThreshold(config.display.highThreshold);
+        setDisplayLowThreshold(config.display.lowThreshold);
+        setDisplayCriticalLowThreshold(config.display.criticalLowThreshold);
         setConnectionFeedback(null);
     }, [config.display, config.polling, config.source, visible]);
 
@@ -296,6 +302,9 @@ function SettingsForm({
                     showAge: displayShowAge,
                     showDelta: displayShowDelta,
                     textSize: displayTextSize,
+                    highThreshold: displayHighThreshold,
+                    lowThreshold: displayLowThreshold,
+                    criticalLowThreshold: displayCriticalLowThreshold,
                 },
             });
 
@@ -354,7 +363,7 @@ function SettingsForm({
                         autoCorrect={false}
                         keyboardType="url"
                         onChangeText={setXdripBaseUrl}
-                        placeholder="http://127.0.0.1:17580"
+                        placeholder={DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl}
                         placeholderTextColor="#888"
                         style={styles.input}
                         value={xdripBaseUrl}
@@ -390,7 +399,7 @@ function SettingsForm({
                     onBlur={() => normalizePollingField("intervalSeconds")}
                     onChangeText={(text) =>
                         updatePollingField("intervalSeconds", text)}
-                    placeholder="5"
+                    placeholder={DEFAULT_APP_CONFIG.polling.intervalSeconds.toString()}
                     value={pollingDraft.intervalSeconds}
                 />
 
@@ -401,7 +410,7 @@ function SettingsForm({
                     onBlur={() => normalizePollingField("staleAfterSeconds")}
                     onChangeText={(text) =>
                         updatePollingField("staleAfterSeconds", text)}
-                    placeholder="600"
+                    placeholder={DEFAULT_APP_CONFIG.polling.staleAfterSeconds.toString()}
                     value={pollingDraft.staleAfterSeconds}
                 />
 
@@ -412,7 +421,7 @@ function SettingsForm({
                     onBlur={() => normalizePollingField("historySeconds")}
                     onChangeText={(text) =>
                         updatePollingField("historySeconds", text)}
-                    placeholder="10800"
+                    placeholder={DEFAULT_APP_CONFIG.polling.historySeconds.toString()}
                     value={pollingDraft.historySeconds}
                 />
             </View>
@@ -486,8 +495,77 @@ function SettingsForm({
                             setDisplayTextSize(0);
                         }
                     }}
-                    placeholder="16"
+                    placeholder={DEFAULT_APP_CONFIG.display.textSize.toString()}
                     value={displayTextSize.toString()}
+                />
+
+                <NumericSettingField
+                    error={undefined}
+                    hint="The glucose value above which the reading is considered high and appears in yellow."
+                    label="High threshold"
+                    onBlur={() => {
+                        const value = parsePositiveSeconds(
+                            displayHighThreshold.toString(),
+                            "High threshold",
+                        );
+                        setDisplayHighThreshold(value);
+                    }}
+                    onChangeText={(text) => {
+                        const trimmed = text.trim();
+                        if (/^\d+$/.test(trimmed)) {
+                            setDisplayHighThreshold(Number(trimmed));
+                        } else {
+                            setDisplayHighThreshold(0);
+                        }
+                    }}
+                    placeholder={DEFAULT_APP_CONFIG.display.highThreshold.toString()}
+                    value={displayHighThreshold.toString()}
+                />
+
+                <NumericSettingField
+                    error={undefined}
+                    hint="The glucose value below which the reading is considered low and appears in red."
+                    label="Low threshold"
+                    onBlur={() => {
+                        const value = parsePositiveSeconds(
+                            displayLowThreshold.toString(),
+                            "Low threshold",
+                        );
+                        setDisplayLowThreshold(value);
+                    }}
+                    onChangeText={(text) => {
+                        const trimmed = text.trim();
+                        if (/^\d+$/.test(trimmed)) {
+                            setDisplayLowThreshold(Number(trimmed));
+                        } else {
+                            setDisplayLowThreshold(0);
+                        }
+                    }}
+                    placeholder={DEFAULT_APP_CONFIG.display.lowThreshold.toString()}
+                    value={displayLowThreshold.toString()}
+                />
+
+                <NumericSettingField
+                    error={undefined}
+                    hint="The glucose value below which the reading is considered critically low and the background turns red."
+                    label="Critical low threshold"
+                    onBlur={() => {
+                        const value = parsePositiveSeconds(
+                            displayCriticalLowThreshold.toString(),
+                            "Critical low threshold",
+                        );
+                        setDisplayCriticalLowThreshold(value);
+                    }}
+                    onChangeText={(text) => {
+                        const trimmed = text.trim();
+                        if (/^\d+$/.test(trimmed)) {
+                            setDisplayCriticalLowThreshold(Number(trimmed));
+                        } else {
+                            setDisplayCriticalLowThreshold(0);
+                        }
+                    }}
+                    placeholder={DEFAULT_APP_CONFIG.display.criticalLowThreshold.toString()}
+                    value={displayCriticalLowThreshold.toString()}
                 />
             </View>
         </ScrollView>

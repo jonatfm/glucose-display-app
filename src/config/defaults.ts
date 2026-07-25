@@ -22,5 +22,8 @@ export const DEFAULT_APP_CONFIG = {
         showAge: true,
         showDelta: true,
         textSize: 128,
+        highThreshold: 180,
+        lowThreshold: 90,
+        criticalLowThreshold: 65,
     }
 } satisfies AppConfig;

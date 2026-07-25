@@ -24,5 +24,8 @@ export type AppConfig = {
         showAge: boolean;
         showDelta: boolean;
         textSize: number;
+        highThreshold: number;
+        lowThreshold: number;
+        criticalLowThreshold: number;
     }
 }

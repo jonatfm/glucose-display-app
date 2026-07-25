@@ -43,6 +43,9 @@ export const isAppConfig = (
         typeof display.hideSystemUi === "boolean" &&
         typeof display.showAge === "boolean" &&
         typeof display.showDelta === "boolean" &&
-        isPositiveInteger(display.textSize)
+        isPositiveInteger(display.textSize) &&
+        isPositiveInteger(display.highThreshold) &&
+        isPositiveInteger(display.lowThreshold) &&
+        isPositiveInteger(display.criticalLowThreshold)
     );
 };

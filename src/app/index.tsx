@@ -109,14 +109,19 @@ function AppContent() {
     const isStale = ageSeconds > config.polling.staleAfterSeconds;
 
     return (
-        <View style={styles.bloodsugarContainer}>
+        <View style={[
+            styles.bloodsugarContainer,
+            latestReading.valueMgDl <= config.display.criticalLowThreshold && {backgroundColor: "#ff0000", borderRadius: 16},
+        ]}>
             <Text
                 style={[
                     styles.text,
                     isStale && styles.staleText,
                     {
                         fontSize: config.display.textSize,
-                    }
+                    },
+                    latestReading.valueMgDl >= config.display.highThreshold && {color: "#ffff00"},
+                    latestReading.valueMgDl <= config.display.lowThreshold && latestReading.valueMgDl > config.display.criticalLowThreshold && {color: "#ff0000"},
                 ]}
             >
                 {formatGlucose(
@@ -175,6 +180,7 @@ const styles = StyleSheet.create({
         padding: 16,
     },
     bloodsugarContainer: {
+        padding: 16,
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
