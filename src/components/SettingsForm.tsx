@@ -53,7 +53,7 @@ function SettingsForm({
 
     const [sourceType, setSourceType] = useState<SourceType>("none");
     const [xdripBaseUrl, setXdripBaseUrl] = useState(DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl);
-    const [feedback, setFeedback] = useState<string | null>(null);
+    const [connectionFeedback, setConnectionFeedback] = useState<string | null>(null);
     const [isWorking, setIsWorking] = useState(false);
     const testController = useRef<AbortController | null>(null);
 
@@ -69,7 +69,7 @@ function SettingsForm({
                 ? config.source.baseUrl
                 : DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl,
         );
-        setFeedback(null);
+        setConnectionFeedback(null);
     }, [config.source, visible]);
 
     useEffect(
@@ -89,7 +89,7 @@ function SettingsForm({
 
     const testConnection = async () => {
         setIsWorking(true);
-        setFeedback(null);
+        setConnectionFeedback(null);
 
         testController.current?.abort();
         testController.current = new AbortController();
@@ -104,10 +104,10 @@ function SettingsForm({
 
             await connector.testConnection(testController.current.signal);
 
-            setFeedback("Connection successful!");
+            setConnectionFeedback("Connection successful!");
         } catch (error) {
             if (!testController.current?.signal.aborted) {
-                setFeedback(
+                setConnectionFeedback(
                     error instanceof Error
                         ? error.message
                         : "Connection test failed",
@@ -124,7 +124,7 @@ function SettingsForm({
         }
 
         setIsWorking(true);
-        setFeedback(null);
+        setConnectionFeedback(null);
 
         try {
             const source = createDraftSource();
@@ -136,7 +136,7 @@ function SettingsForm({
 
             onFinished();
         } catch (error) {
-            setFeedback(
+            setConnectionFeedback(
                 error instanceof Error
                     ? error.message
                     : "Could not save settings",
@@ -164,7 +164,7 @@ function SettingsForm({
                     label="None"
                     onPress={() => {
                         setSourceType("none");
-                        setFeedback(null);
+                        setConnectionFeedback(null);
                     }}
                 />
                 <SourceButton
@@ -172,7 +172,7 @@ function SettingsForm({
                     label="xDrip"
                     onPress={() => {
                         setSourceType("xdrip");
-                        setFeedback(null);
+                        setConnectionFeedback(null);
                     }}
                 />
             </View>
@@ -206,9 +206,9 @@ function SettingsForm({
                 </View>
             ) : null}
 
-            {feedback !== null ? (
+            {connectionFeedback !== null ? (
                 <Text style={styles.feedback}>
-                    {feedback}
+                    {connectionFeedback}
                 </Text>
             ) : null}
         </View>
