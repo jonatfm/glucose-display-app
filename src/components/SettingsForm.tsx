@@ -814,7 +814,10 @@ function SettingsForm({
             keyboardShouldPersistTaps="handled"
         >
             <Text style={styles.label}>Glucose source</Text>
-            <View style={styles.sourceRow}>
+            <View
+                accessibilityRole="radiogroup"
+                style={styles.sourceRow}
+            >
                 <SourceButton
                     active={sourceType === "none"}
                     label="None"
