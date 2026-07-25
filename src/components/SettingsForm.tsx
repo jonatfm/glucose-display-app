@@ -409,6 +409,7 @@ function SettingsForm({
     const [displayHideSystemUi, setDisplayHideSystemUi] = useState(config.display.hideSystemUi);
     const [displayShowAge, setDisplayShowAge] = useState(config.display.showAge);
     const [displayShowDelta, setDisplayShowDelta] = useState(config.display.showDelta);
+    const [displayShowTrend, setDisplayShowTrend] = useState(config.display.showTrend);
     const [displayNumberDraft, setDisplayNumberDraft] =
         useState<DisplayNumberDraft>(
             createDisplayNumberDraft(config.display, config.display.unit),
@@ -445,6 +446,7 @@ function SettingsForm({
         setDisplayHideSystemUi(config.display.hideSystemUi);
         setDisplayShowAge(config.display.showAge);
         setDisplayShowDelta(config.display.showDelta);
+        setDisplayShowTrend(config.display.showTrend);
         setDisplayNumberDraft(
             createDisplayNumberDraft(config.display, config.display.unit),
         );
@@ -771,6 +773,7 @@ function SettingsForm({
                     hideSystemUi: displayHideSystemUi,
                     showAge: displayShowAge,
                     showDelta: displayShowDelta,
+                    showTrend: displayShowTrend,
                     textSize: displayNumbers.textSize,
                     highThreshold: displayNumbers.highThreshold,
                     lowThreshold: displayNumbers.lowThreshold,
@@ -964,6 +967,13 @@ function SettingsForm({
                     label="Show reading delta"
                     onValueChange={setDisplayShowDelta}
                     value={displayShowDelta}
+                />
+
+                <SettingSwitch
+                    hint="Show the latest trend direction next to the glucose value."
+                    label="Show trend direction"
+                    onValueChange={setDisplayShowTrend}
+                    value={displayShowTrend}
                 />
 
                 <NumericSettingField

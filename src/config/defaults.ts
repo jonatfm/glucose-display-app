@@ -6,7 +6,7 @@ export const DEFAULT_XDRIP_SOURCE_CONFIG = {
 } satisfies XdripSourceConfig;
 
 export const DEFAULT_APP_CONFIG = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     source: {
         type: "none",
     },
@@ -20,6 +20,7 @@ export const DEFAULT_APP_CONFIG = {
         hideSystemUi: true,
         showAge: true,
         showDelta: true,
+        showTrend: false,
         textSize: 128,
         highThreshold: 180,
         lowThreshold: 90,

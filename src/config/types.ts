@@ -10,7 +10,7 @@ export type XdripSourceConfig = {
 export type SourceConfig = NoSourceConfig | XdripSourceConfig;
 
 export type AppConfig = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     source: SourceConfig;
     polling: {
         intervalSeconds: number;
@@ -22,6 +22,7 @@ export type AppConfig = {
         hideSystemUi: boolean;
         showAge: boolean;
         showDelta: boolean;
+        showTrend: boolean;
         textSize: number;
         highThreshold: number;
         lowThreshold: number;

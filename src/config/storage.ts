@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DEFAULT_APP_CONFIG } from "./defaults";
 import type { AppConfig } from "./types";
 import { isAppConfig } from "./validation";
+import { migrateAppConfig } from "./migrations";
 
 const STORAGE_KEY = "car-glucose-display.config.v1";
 
@@ -15,9 +16,10 @@ export const loadAppConfig =
             }
 
             const parsed: unknown = JSON.parse(stored);
+            const migrated = migrateAppConfig(parsed);
 
-            return isAppConfig(parsed)
-                ? parsed
+            return isAppConfig(migrated)
+                ? migrated
                 : DEFAULT_APP_CONFIG;
         } catch (error) {
             console.warn("Could not load configuration", error);

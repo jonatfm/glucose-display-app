@@ -36,7 +36,7 @@ export const isAppConfig = (
         );
 
     const hasValidShape = (
-        value.schemaVersion === 1 &&
+        value.schemaVersion === 2 &&
         isValidSource &&
         isObject(polling) &&
         isPositiveInteger(polling.intervalSeconds) &&
@@ -48,6 +48,7 @@ export const isAppConfig = (
         typeof display.hideSystemUi === "boolean" &&
         typeof display.showAge === "boolean" &&
         typeof display.showDelta === "boolean" &&
+        typeof display.showTrend === "boolean" &&
         isPositiveInteger(display.textSize) &&
         isPositiveInteger(display.highThreshold) &&
         isPositiveInteger(display.lowThreshold) &&

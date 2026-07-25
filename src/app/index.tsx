@@ -10,6 +10,7 @@ import { StatusBar } from "expo-status-bar";
 import GlucoseGraph from "../components/GlucoseGraph";
 import { formatGlucose } from "../glucose/units";
 import { getGlucoseDisplayStatus } from "../glucose/displayStatus";
+import { getTrendDirectionSymbol } from "../glucose/trendDirection";
 
 const DISPLAY_JUSTIFY_CONTENT = {
     top: "flex-start",
@@ -119,6 +120,9 @@ function AppContent() {
     );
 
     const isStale = ageSeconds > config.polling.staleAfterSeconds;
+    const trendDirection = getTrendDirectionSymbol(
+        latestReading.direction,
+    );
 
     return (
         <View
@@ -152,6 +156,10 @@ function AppContent() {
                         latestReading.valueMgDl,
                         config.display.unit,
                     )}
+                    {!config.display.showTrend ||
+                    trendDirection === null
+                        ? null
+                        : ` ${trendDirection}`}
                 </Text>
                 <View style={{flexDirection: "row", gap: config.display.textSize / 3}}>
                     {config.display.showAge ? (
