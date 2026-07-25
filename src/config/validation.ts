@@ -5,6 +5,11 @@ const isObject = (
 ): value is Record<string, unknown> =>
     value !== null && typeof value === "object";
 
+const isPositiveInteger = (value: unknown): value is number =>
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 1;
+
 export const isAppConfig = (
     value: unknown,
 ): value is AppConfig => {
@@ -28,9 +33,9 @@ export const isAppConfig = (
         value.schemaVersion === 1 &&
         isValidSource &&
         isObject(polling) &&
-        typeof polling.intervalSeconds === "number" &&
-        typeof polling.staleAfterSeconds === "number" &&
-        typeof polling.historySeconds === "number" &&
+        isPositiveInteger(polling.intervalSeconds) &&
+        isPositiveInteger(polling.staleAfterSeconds) &&
+        isPositiveInteger(polling.historySeconds) &&
         isObject(display) &&
         (display.unit === "mg/dL" ||
             display.unit === "mmol/L") &&

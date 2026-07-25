@@ -1,9 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import MainView from "../components/MainView";
 import { AppConfigProvider, useAppConfig } from "../config/AppConfigProvider";
 import { useMemo } from "react";
 import { createConnector } from "../connectors/createConnector";
 import { useGlucoseReadings } from "../glucose/useGlucoseReadings";
+import { useKeepAwake } from "expo-keep-awake";
+import { NavigationBar } from "expo-navigation-bar";
+import { StatusBar } from "expo-status-bar";
 
 function formatGlucose(
     valueMgDl: number,
@@ -12,6 +15,33 @@ function formatGlucose(
     return unit === "mmol/L"
         ? (valueMgDl / 18).toFixed(1)
         : String(Math.round(valueMgDl));
+}
+
+function KeepScreenAwake() {
+    useKeepAwake();
+    return null;
+}
+
+function DisplayEffects() {
+    const {config} = useAppConfig();
+
+    return (
+        <>
+            {config.display.keepScreenAwake
+                ? <KeepScreenAwake />
+                : null}
+            <StatusBar
+                hidden={config.display.hideSystemUi}
+                style="light"
+            />
+            {Platform.OS === "android" ? (
+                <NavigationBar
+                    hidden={config.display.hideSystemUi}
+                    style="dark"
+                />
+            ) : null}
+        </>
+    );
 }
 
 function AppContent() {
@@ -80,7 +110,17 @@ function AppContent() {
 
     return (
         <View>
-            <Text style={styles.text}>{formatGlucose(latestReading.valueMgDl, config.display.unit)}</Text>
+            <Text
+                style={[
+                    styles.text,
+                    isStale && styles.staleText,
+                ]}
+            >
+                {formatGlucose(
+                    latestReading.valueMgDl,
+                    config.display.unit,
+                )}
+            </Text>
         </View>
     )
 }
@@ -88,6 +128,7 @@ function AppContent() {
 export default function App() {
     return (
         <AppConfigProvider>
+            <DisplayEffects />
             <MainView>
                 <AppContent />
             </MainView>
@@ -98,6 +139,9 @@ export default function App() {
 const styles = StyleSheet.create({
     text: {
         color: "#fff",
+    },
+    staleText: {
+        color: "#ff0000",
     },
     message: {
         color: "#fff",

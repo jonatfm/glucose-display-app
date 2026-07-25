@@ -6,10 +6,18 @@ import {
     useState,
 } from "react";
 import { useAppConfig } from "../config/AppConfigProvider";
-import { SourceConfig } from "../config/types";
+import { AppConfig, SourceConfig } from "../config/types";
 import { DEFAULT_XDRIP_SOURCE_CONFIG } from "../config/defaults";
 import { createConnector } from "../connectors/createConnector";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    View,
+} from "react-native";
 
 type SettingsFormProps = {
     visible: boolean;
@@ -21,6 +29,87 @@ export type SettingsFormHandle = {
 };
 
 type SourceType = SourceConfig["type"];
+type PollingField = keyof AppConfig["polling"];
+type PollingDraft = Record<PollingField, string>;
+type PollingErrors = Partial<Record<PollingField, string>>;
+
+const POLLING_FIELD_NAMES: Record<PollingField, string> = {
+    intervalSeconds: "Polling interval",
+    staleAfterSeconds: "Stale threshold",
+    historySeconds: "History window",
+};
+
+const createPollingDraft = (
+    polling: AppConfig["polling"],
+): PollingDraft => ({
+    intervalSeconds: polling.intervalSeconds.toString(),
+    staleAfterSeconds: polling.staleAfterSeconds.toString(),
+    historySeconds: polling.historySeconds.toString(),
+});
+
+const parsePositiveSeconds = (
+    text: string,
+    fieldName: string,
+): number => {
+    const trimmed = text.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+        throw new Error(`${fieldName} must be a whole number of seconds`);
+    }
+
+    const value = Number(trimmed);
+
+    if (!Number.isSafeInteger(value) || value < 1) {
+        throw new Error(`${fieldName} must be at least 1 second`);
+    }
+
+    return value;
+};
+
+const validatePollingDraft = (
+    draft: PollingDraft,
+): {
+    errors: PollingErrors;
+    polling: AppConfig["polling"] | null;
+} => {
+    const errors: PollingErrors = {};
+
+    const parseField = (field: PollingField): number | undefined => {
+        try {
+            return parsePositiveSeconds(
+                draft[field],
+                POLLING_FIELD_NAMES[field],
+            );
+        } catch (error) {
+            errors[field] = error instanceof Error
+                ? error.message
+                : "Enter a valid number of seconds";
+            return undefined;
+        }
+    };
+
+    const intervalSeconds = parseField("intervalSeconds");
+    const staleAfterSeconds = parseField("staleAfterSeconds");
+    const historySeconds = parseField("historySeconds");
+
+    if (intervalSeconds === undefined ||
+        staleAfterSeconds === undefined ||
+        historySeconds === undefined) {
+        return {
+            errors,
+            polling: null,
+        };
+    }
+
+    return {
+        errors,
+        polling: {
+            intervalSeconds,
+            staleAfterSeconds,
+            historySeconds,
+        },
+    };
+};
 
 const parseXdripSource = (
     baseUrl: string,
@@ -51,11 +140,23 @@ function SettingsForm({
 }, ref) {
     const {config, replaceConfig} = useAppConfig();
 
+    // glucose source settings
     const [sourceType, setSourceType] = useState<SourceType>("none");
     const [xdripBaseUrl, setXdripBaseUrl] = useState(DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl);
     const [connectionFeedback, setConnectionFeedback] = useState<string | null>(null);
     const [isWorking, setIsWorking] = useState(false);
     const testController = useRef<AbortController | null>(null);
+
+    // polling settings
+    const [pollingDraft, setPollingDraft] = useState<PollingDraft>(
+        createPollingDraft(config.polling),
+    );
+    const [pollingErrors, setPollingErrors] = useState<PollingErrors>({});
+
+    // display settings
+    const [displayUnit, setDisplayUnit] = useState(config.display.unit);
+    const [displayKeepScreenAwake, setDisplayKeepScreenAwake] = useState(config.display.keepScreenAwake);
+    const [displayHideSystemUi, setDisplayHideSystemUi] = useState(config.display.hideSystemUi);
 
     useEffect(() => {
         if (!visible) {
@@ -69,8 +170,13 @@ function SettingsForm({
                 ? config.source.baseUrl
                 : DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl,
         );
+        setPollingDraft(createPollingDraft(config.polling));
+        setPollingErrors({});
+        setDisplayUnit(config.display.unit);
+        setDisplayKeepScreenAwake(config.display.keepScreenAwake);
+        setDisplayHideSystemUi(config.display.hideSystemUi);
         setConnectionFeedback(null);
-    }, [config.source, visible]);
+    }, [config.display, config.polling, config.source, visible]);
 
     useEffect(
         () => () => testController.current?.abort(),
@@ -85,6 +191,42 @@ function SettingsForm({
         }
 
         return parseXdripSource(xdripBaseUrl);
+    };
+
+    const updatePollingField = (
+        field: PollingField,
+        text: string,
+    ) => {
+        setPollingDraft((current) => ({
+            ...current,
+            [field]: text,
+        }));
+        setPollingErrors((current) => {
+            if (current[field] === undefined) {
+                return current;
+            }
+
+            const next = {...current};
+            delete next[field];
+            return next;
+        });
+    };
+
+    const normalizePollingField = (field: PollingField) => {
+        try {
+            const value = parsePositiveSeconds(
+                pollingDraft[field],
+                POLLING_FIELD_NAMES[field],
+            );
+            updatePollingField(field, value.toString());
+        } catch (error) {
+            setPollingErrors((current) => ({
+                ...current,
+                [field]: error instanceof Error
+                    ? error.message
+                    : "Enter a valid number of seconds",
+            }));
+        }
     };
 
     const testConnection = async () => {
@@ -123,8 +265,16 @@ function SettingsForm({
             return;
         }
 
-        setIsWorking(true);
         setConnectionFeedback(null);
+        const {errors, polling} = validatePollingDraft(pollingDraft);
+
+        if (polling === null) {
+            setPollingErrors(errors);
+            return;
+        }
+
+        setPollingErrors({});
+        setIsWorking(true);
 
         try {
             const source = createDraftSource();
@@ -132,6 +282,12 @@ function SettingsForm({
             await replaceConfig({
                 ...config,
                 source,
+                polling,
+                display: {
+                    unit: displayUnit,
+                    keepScreenAwake: displayKeepScreenAwake,
+                    hideSystemUi: displayHideSystemUi,
+                },
             });
 
             onFinished();
@@ -156,7 +312,10 @@ function SettingsForm({
     };
 
     return (
-        <View style={styles.container}>
+        <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+        >
             <Text style={styles.label}>Glucose source</Text>
             <View style={styles.sourceRow}>
                 <SourceButton
@@ -211,11 +370,165 @@ function SettingsForm({
                     {connectionFeedback}
                 </Text>
             ) : null}
-        </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Polling</Text>
+
+                <NumericSettingField
+                    error={pollingErrors.intervalSeconds}
+                    hint="How often to request new glucose readings."
+                    label="Polling interval (seconds)"
+                    onBlur={() => normalizePollingField("intervalSeconds")}
+                    onChangeText={(text) =>
+                        updatePollingField("intervalSeconds", text)}
+                    placeholder="5"
+                    value={pollingDraft.intervalSeconds}
+                />
+
+                <NumericSettingField
+                    error={pollingErrors.staleAfterSeconds}
+                    hint="A reading older than this is shown as stale."
+                    label="Stale threshold (seconds)"
+                    onBlur={() => normalizePollingField("staleAfterSeconds")}
+                    onChangeText={(text) =>
+                        updatePollingField("staleAfterSeconds", text)}
+                    placeholder="600"
+                    value={pollingDraft.staleAfterSeconds}
+                />
+
+                <NumericSettingField
+                    error={pollingErrors.historySeconds}
+                    hint="How much recent reading history to request. Required to fill the graph with data."
+                    label="History window (seconds)"
+                    onBlur={() => normalizePollingField("historySeconds")}
+                    onChangeText={(text) =>
+                        updatePollingField("historySeconds", text)}
+                    placeholder="10800"
+                    value={pollingDraft.historySeconds}
+                />
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Display</Text>
+
+                <View style={styles.field}>
+                    <Text style={styles.label}>Glucose unit</Text>
+                    <View
+                        accessibilityRole="radiogroup"
+                        style={styles.sourceRow}
+                    >
+                        <SourceButton
+                            active={displayUnit === "mg/dL"}
+                            label="mg/dL"
+                            onPress={() => setDisplayUnit("mg/dL")}
+                        />
+                        <SourceButton
+                            active={displayUnit === "mmol/L"}
+                            label="mmol/L"
+                            onPress={() => setDisplayUnit("mmol/L")}
+                        />
+                    </View>
+                </View>
+
+                <SettingSwitch
+                    hint="Prevent the display from sleeping while the app is open."
+                    label="Keep screen awake"
+                    onValueChange={setDisplayKeepScreenAwake}
+                    value={displayKeepScreenAwake}
+                />
+
+                <SettingSwitch
+                    hint="Hide the status and navigation bars for a distraction-free display."
+                    label="Hide system UI"
+                    onValueChange={setDisplayHideSystemUi}
+                    value={displayHideSystemUi}
+                />
+            </View>
+        </ScrollView>
     )
 });
 
 export default SettingsForm;
+
+type NumericSettingFieldProps = {
+    error?: string;
+    hint: string;
+    label: string;
+    onBlur: () => void;
+    onChangeText: (text: string) => void;
+    placeholder: string;
+    value: string;
+};
+
+function NumericSettingField({
+    error,
+    hint,
+    label,
+    onBlur,
+    onChangeText,
+    placeholder,
+    value,
+}: NumericSettingFieldProps) {
+    return (
+        <View style={styles.field}>
+            <Text style={styles.label}>{label}</Text>
+            <TextInput
+                accessibilityHint="Enter a whole number with a minimum of one"
+                accessibilityLabel={label}
+                inputMode="numeric"
+                onBlur={onBlur}
+                onChangeText={onChangeText}
+                placeholder={placeholder}
+                placeholderTextColor="#888"
+                selectTextOnFocus
+                style={[
+                    styles.input,
+                    error !== undefined && styles.inputInvalid,
+                ]}
+                value={value}
+            />
+            <Text
+                accessibilityLiveRegion="polite"
+                style={[
+                    styles.inputHint,
+                    error !== undefined && styles.inputError,
+                ]}
+            >
+                {error ?? `${hint} Minimum: 1 second.`}
+            </Text>
+        </View>
+    );
+}
+
+type SettingSwitchProps = {
+    hint: string;
+    label: string;
+    onValueChange: (value: boolean) => void;
+    value: boolean;
+};
+
+function SettingSwitch({
+    hint,
+    label,
+    onValueChange,
+    value,
+}: SettingSwitchProps) {
+    return (
+        <View style={styles.switchRow}>
+            <View style={styles.switchCopy}>
+                <Text style={styles.label}>{label}</Text>
+                <Text style={styles.inputHint}>{hint}</Text>
+            </View>
+            <Switch
+                accessibilityLabel={label}
+                ios_backgroundColor="#555"
+                onValueChange={onValueChange}
+                trackColor={{false: "#555", true: "#fff"}}
+                value={value}
+            />
+        </View>
+    );
+}
 
 type SourceButtonProps = {
     active: boolean;
@@ -252,12 +565,20 @@ function SourceButton({
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
         gap: 24,
         padding: 24,
+        paddingBottom: 40,
     },
     field: {
         gap: 12,
+    },
+    section: {
+        gap: 20,
+    },
+    sectionTitle: {
+        color: "#fff",
+        fontSize: 20,
+        fontWeight: "700",
     },
     label: {
         color: "#fff",
@@ -315,5 +636,26 @@ const styles = StyleSheet.create({
     feedback: {
         color: "#ccc",
         fontSize: 15,
+    },
+    inputHint: {
+        color: "#aaa",
+        fontSize: 14,
+    },
+    inputError: {
+        color: "#ff8a8a",
+    },
+    inputInvalid: {
+        borderColor: "#ff8a8a",
+    },
+    switchRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: 16,
+        justifyContent: "space-between",
+        minHeight: 56,
+    },
+    switchCopy: {
+        flex: 1,
+        gap: 4,
     }
 })
