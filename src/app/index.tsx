@@ -59,7 +59,7 @@ function AppContent() {
         now,
     } = useGlucoseReadings({
         connector: isLoaded ? connector : null,
-        historySeconds: config.polling.historySeconds,
+        historySeconds: config.graph.historySeconds,
         intervalSeconds: config.polling.intervalSeconds,
     });
 

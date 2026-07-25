@@ -10,6 +10,11 @@ const isPositiveInteger = (value: unknown): value is number =>
     Number.isSafeInteger(value) &&
     value >= 1;
 
+const isPositiveNumber = (value: unknown): value is number =>
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value > 0;
+
 export const isAppConfig = (
     value: unknown,
 ): value is AppConfig => {
@@ -17,7 +22,7 @@ export const isAppConfig = (
         return false;
     }
 
-    const {source, polling, display} = value;
+    const {source, polling, display, graph} = value;
 
     const isValidSource =
         isObject(source) &&
@@ -35,7 +40,6 @@ export const isAppConfig = (
         isObject(polling) &&
         isPositiveInteger(polling.intervalSeconds) &&
         isPositiveInteger(polling.staleAfterSeconds) &&
-        isPositiveInteger(polling.historySeconds) &&
         isObject(display) &&
         (display.unit === "mg/dL" ||
             display.unit === "mmol/L") &&
@@ -46,6 +50,13 @@ export const isAppConfig = (
         isPositiveInteger(display.textSize) &&
         isPositiveInteger(display.highThreshold) &&
         isPositiveInteger(display.lowThreshold) &&
-        isPositiveInteger(display.criticalLowThreshold)
+        isPositiveInteger(display.criticalLowThreshold) &&
+        isObject(graph) &&
+        typeof graph.show === "boolean" &&
+        isPositiveInteger(graph.ceiling) &&
+        isPositiveInteger(graph.floor) &&
+        graph.ceiling > graph.floor &&
+        isPositiveNumber(graph.aspectRatio) &&
+        isPositiveInteger(graph.historySeconds)
     );
 };

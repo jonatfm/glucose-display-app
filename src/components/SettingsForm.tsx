@@ -39,11 +39,17 @@ type DisplayNumberField =
     | "criticalLowThreshold";
 type DisplayNumberDraft = Record<DisplayNumberField, string>;
 type DisplayNumberErrors = Partial<Record<DisplayNumberField, string>>;
+type GraphNumberField =
+    | "ceiling"
+    | "floor"
+    | "aspectRatio"
+    | "historyHours";
+type GraphNumberDraft = Record<GraphNumberField, string>;
+type GraphNumberErrors = Partial<Record<GraphNumberField, string>>;
 
 const POLLING_FIELD_NAMES: Record<PollingField, string> = {
     intervalSeconds: "Polling interval",
     staleAfterSeconds: "Stale threshold",
-    historySeconds: "History window",
 };
 
 const DISPLAY_NUMBER_FIELD_NAMES: Record<DisplayNumberField, string> = {
@@ -53,12 +59,18 @@ const DISPLAY_NUMBER_FIELD_NAMES: Record<DisplayNumberField, string> = {
     criticalLowThreshold: "Critical low threshold",
 };
 
+const GRAPH_NUMBER_FIELD_NAMES: Record<GraphNumberField, string> = {
+    ceiling: "Graph ceiling",
+    floor: "Graph floor",
+    aspectRatio: "Graph aspect ratio",
+    historyHours: "Graph history window",
+};
+
 const createPollingDraft = (
     polling: AppConfig["polling"],
 ): PollingDraft => ({
     intervalSeconds: polling.intervalSeconds.toString(),
     staleAfterSeconds: polling.staleAfterSeconds.toString(),
-    historySeconds: polling.historySeconds.toString(),
 });
 
 const createDisplayNumberDraft = (
@@ -68,6 +80,15 @@ const createDisplayNumberDraft = (
     highThreshold: display.highThreshold.toString(),
     lowThreshold: display.lowThreshold.toString(),
     criticalLowThreshold: display.criticalLowThreshold.toString(),
+});
+
+const createGraphNumberDraft = (
+    graph: AppConfig["graph"],
+): GraphNumberDraft => ({
+    ceiling: graph.ceiling.toString(),
+    floor: graph.floor.toString(),
+    aspectRatio: graph.aspectRatio.toString(),
+    historyHours: (graph.historySeconds / 3600).toString(),
 });
 
 const parsePositiveWholeNumber = (
@@ -113,11 +134,9 @@ const validatePollingDraft = (
 
     const intervalSeconds = parseField("intervalSeconds");
     const staleAfterSeconds = parseField("staleAfterSeconds");
-    const historySeconds = parseField("historySeconds");
 
     if (intervalSeconds === undefined ||
-        staleAfterSeconds === undefined ||
-        historySeconds === undefined) {
+        staleAfterSeconds === undefined) {
         return {
             errors,
             polling: null,
@@ -129,7 +148,6 @@ const validatePollingDraft = (
         polling: {
             intervalSeconds,
             staleAfterSeconds,
-            historySeconds,
         },
     };
 };
@@ -161,6 +179,109 @@ const validateDisplayNumberDraft = (
     return {
         errors,
         values: Object.keys(errors).length === 0 ? values : null,
+    };
+};
+
+const parsePositiveFloat = (
+    text: string,
+    fieldName: string,
+): number => {
+    const trimmed = text.trim();
+
+    if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(trimmed)) {
+        throw new Error(`${fieldName} must be a number`);
+    }
+
+    const value = Number(trimmed);
+
+    if (!Number.isFinite(value) || value <= 0) {
+        throw new Error(`${fieldName} must be greater than 0`);
+    }
+
+    return value;
+};
+
+const validateGraphNumberDraft = (
+    draft: GraphNumberDraft,
+): {
+    errors: GraphNumberErrors;
+    graph: Omit<AppConfig["graph"], "show"> | null;
+} => {
+    const errors: GraphNumberErrors = {};
+    const parseWholeNumber = (
+        field: "ceiling" | "floor",
+    ): number | undefined => {
+        try {
+            return parsePositiveWholeNumber(
+                draft[field],
+                GRAPH_NUMBER_FIELD_NAMES[field],
+            );
+        } catch (error) {
+            errors[field] = error instanceof Error
+                ? error.message
+                : "Enter a valid whole number";
+            return undefined;
+        }
+    };
+
+    const ceiling = parseWholeNumber("ceiling");
+    const floor = parseWholeNumber("floor");
+    let aspectRatio: number | undefined;
+    let historyHours: number | undefined;
+    let historySeconds: number | undefined;
+
+    try {
+        aspectRatio = parsePositiveFloat(
+            draft.aspectRatio,
+            GRAPH_NUMBER_FIELD_NAMES.aspectRatio,
+        );
+    } catch (error) {
+        errors.aspectRatio = error instanceof Error
+            ? error.message
+            : "Enter a valid number";
+    }
+
+    try {
+        historyHours = parsePositiveFloat(
+            draft.historyHours,
+            GRAPH_NUMBER_FIELD_NAMES.historyHours,
+        );
+        historySeconds = Math.round(historyHours * 3600);
+
+        if (historySeconds < 1) {
+            throw new Error(
+                "Graph history window must be at least one second",
+            );
+        }
+    } catch (error) {
+        errors.historyHours = error instanceof Error
+            ? error.message
+            : "Enter a valid number";
+    }
+
+    if (ceiling !== undefined &&
+        floor !== undefined &&
+        ceiling <= floor) {
+        errors.ceiling = "Graph ceiling must be above the graph floor";
+        errors.floor = "Graph floor must be below the graph ceiling";
+    }
+
+    if (ceiling === undefined ||
+        floor === undefined ||
+        aspectRatio === undefined ||
+        historySeconds === undefined ||
+        Object.keys(errors).length > 0) {
+        return {errors, graph: null};
+    }
+
+    return {
+        errors,
+        graph: {
+            ceiling,
+            floor,
+            aspectRatio,
+            historySeconds,
+        },
     };
 };
 
@@ -219,6 +340,15 @@ function SettingsForm({
     const [displayNumberErrors, setDisplayNumberErrors] =
         useState<DisplayNumberErrors>({});
 
+    // graph settings
+    const [graphShow, setGraphShow] = useState(config.graph.show);
+    const [graphNumberDraft, setGraphNumberDraft] =
+        useState<GraphNumberDraft>(
+            createGraphNumberDraft(config.graph),
+        );
+    const [graphNumberErrors, setGraphNumberErrors] =
+        useState<GraphNumberErrors>({});
+
     useEffect(() => {
         if (!visible) {
             testController.current?.abort();
@@ -240,8 +370,11 @@ function SettingsForm({
         setDisplayShowDelta(config.display.showDelta);
         setDisplayNumberDraft(createDisplayNumberDraft(config.display));
         setDisplayNumberErrors({});
+        setGraphShow(config.graph.show);
+        setGraphNumberDraft(createGraphNumberDraft(config.graph));
+        setGraphNumberErrors({});
         setConnectionFeedback(null);
-    }, [config.display, config.polling, config.source, visible]);
+    }, [config.display, config.polling, config.source, config.graph, visible]);
 
     useEffect(
         () => () => testController.current?.abort(),
@@ -332,6 +465,50 @@ function SettingsForm({
         }
     };
 
+    const updateGraphNumberField = (
+        field: GraphNumberField,
+        text: string,
+    ) => {
+        setGraphNumberDraft((current) => ({
+            ...current,
+            [field]: text,
+        }));
+        setGraphNumberErrors((current) => {
+            if (current[field] === undefined) {
+                return current;
+            }
+
+            const next = {...current};
+            delete next[field];
+            return next;
+        });
+    };
+
+    const normalizeGraphNumberField = (
+        field: GraphNumberField,
+    ) => {
+        try {
+            const value = field === "aspectRatio" ||
+                field === "historyHours"
+                ? parsePositiveFloat(
+                    graphNumberDraft[field],
+                    GRAPH_NUMBER_FIELD_NAMES[field],
+                )
+                : parsePositiveWholeNumber(
+                    graphNumberDraft[field],
+                    GRAPH_NUMBER_FIELD_NAMES[field],
+                );
+            updateGraphNumberField(field, value.toString());
+        } catch (error) {
+            setGraphNumberErrors((current) => ({
+                ...current,
+                [field]: error instanceof Error
+                    ? error.message
+                    : "Enter a valid number",
+            }));
+        }
+    };
+
     const testConnection = async () => {
         setIsWorking(true);
         setConnectionFeedback(null);
@@ -374,15 +551,23 @@ function SettingsForm({
             errors: displayErrors,
             values: displayNumbers,
         } = validateDisplayNumberDraft(displayNumberDraft);
+        const {
+            errors: graphErrors,
+            graph,
+        } = validateGraphNumberDraft(graphNumberDraft);
 
-        if (polling === null || displayNumbers === null) {
+        if (polling === null ||
+            displayNumbers === null ||
+            graph === null) {
             setPollingErrors(errors);
             setDisplayNumberErrors(displayErrors);
+            setGraphNumberErrors(graphErrors);
             return;
         }
 
         setPollingErrors({});
         setDisplayNumberErrors({});
+        setGraphNumberErrors({});
         setIsWorking(true);
 
         try {
@@ -403,6 +588,10 @@ function SettingsForm({
                     lowThreshold: displayNumbers.lowThreshold,
                     criticalLowThreshold:
                         displayNumbers.criticalLowThreshold,
+                },
+                graph: {
+                    show: graphShow,
+                    ...graph,
                 },
             });
 
@@ -512,16 +701,6 @@ function SettingsForm({
                     value={pollingDraft.staleAfterSeconds}
                 />
 
-                <NumericSettingField
-                    error={pollingErrors.historySeconds}
-                    hint="How much recent reading history to request. Required to fill the graph with data."
-                    label="History window (seconds)"
-                    onBlur={() => normalizePollingField("historySeconds")}
-                    onChangeText={(text) =>
-                        updatePollingField("historySeconds", text)}
-                    placeholder={DEFAULT_APP_CONFIG.polling.historySeconds.toString()}
-                    value={pollingDraft.historySeconds}
-                />
             </View>
 
             <View style={styles.section}>
@@ -632,6 +811,66 @@ function SettingsForm({
                     value={displayNumberDraft.criticalLowThreshold}
                 />
             </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Graph</Text>
+                <SettingSwitch
+                    hint="Toggle if the glucose graph should be displayed."
+                    label="Show glucose graph"
+                    onValueChange={setGraphShow}
+                    value={graphShow}
+                />
+
+                <NumericSettingField
+                    error={graphNumberErrors.ceiling}
+                    hint="The highest glucose value shown on the graph."
+                    label="Ceiling"
+                    onBlur={() => normalizeGraphNumberField("ceiling")}
+                    onChangeText={(text) =>
+                        updateGraphNumberField("ceiling", text)}
+                    placeholder={DEFAULT_APP_CONFIG.graph.ceiling.toString()}
+                    value={graphNumberDraft.ceiling}
+                />
+
+                <NumericSettingField
+                    error={graphNumberErrors.floor}
+                    hint="The lowest glucose value shown on the graph."
+                    label="Floor"
+                    onBlur={() => normalizeGraphNumberField("floor")}
+                    onChangeText={(text) =>
+                        updateGraphNumberField("floor", text)}
+                    placeholder={DEFAULT_APP_CONFIG.graph.floor.toString()}
+                    value={graphNumberDraft.floor}
+                />
+
+                <NumericSettingField
+                    accessibilityHint="Enter a positive decimal number"
+                    error={graphNumberErrors.aspectRatio}
+                    hint="The graph width divided by its height."
+                    inputMode="decimal"
+                    label="Aspect ratio"
+                    onBlur={() =>
+                        normalizeGraphNumberField("aspectRatio")}
+                    onChangeText={(text) =>
+                        updateGraphNumberField("aspectRatio", text)}
+                    placeholder={DEFAULT_APP_CONFIG.graph.aspectRatio.toString()}
+                    value={graphNumberDraft.aspectRatio}
+                />
+
+                <NumericSettingField
+                    accessibilityHint="Enter a positive number of hours"
+                    error={graphNumberErrors.historyHours}
+                    hint="How many hours of recent data are shown and requested for the graph."
+                    inputMode="decimal"
+                    label="History window (hours)"
+                    onBlur={() =>
+                        normalizeGraphNumberField("historyHours")}
+                    onChangeText={(text) =>
+                        updateGraphNumberField("historyHours", text)}
+                    placeholder={(DEFAULT_APP_CONFIG.graph.historySeconds / 3600).toString()}
+                    value={graphNumberDraft.historyHours}
+                />
+            </View>
         </ScrollView>
     )
 });
@@ -639,8 +878,10 @@ function SettingsForm({
 export default SettingsForm;
 
 type NumericSettingFieldProps = {
+    accessibilityHint?: string;
     error?: string;
     hint: string;
+    inputMode?: "decimal" | "numeric";
     label: string;
     onBlur: () => void;
     onChangeText: (text: string) => void;
@@ -649,8 +890,10 @@ type NumericSettingFieldProps = {
 };
 
 function NumericSettingField({
+    accessibilityHint = "Enter a whole number with a minimum of one",
     error,
     hint,
+    inputMode = "numeric",
     label,
     onBlur,
     onChangeText,
@@ -661,9 +904,9 @@ function NumericSettingField({
         <View style={styles.field}>
             <Text style={styles.label}>{label}</Text>
             <TextInput
-                accessibilityHint="Enter a whole number with a minimum of one"
+                accessibilityHint={accessibilityHint}
                 accessibilityLabel={label}
-                inputMode="numeric"
+                inputMode={inputMode}
                 onBlur={onBlur}
                 onChangeText={onChangeText}
                 placeholder={placeholder}

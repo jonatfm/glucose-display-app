@@ -13,7 +13,6 @@ export const DEFAULT_APP_CONFIG = {
     polling: {
         intervalSeconds: 5,
         staleAfterSeconds: 60 * 10, // 10 minutes
-        historySeconds: 60 * 60 * 3, // 3 hours
     },
     display: {
         unit: "mg/dL",
@@ -25,5 +24,12 @@ export const DEFAULT_APP_CONFIG = {
         highThreshold: 180,
         lowThreshold: 90,
         criticalLowThreshold: 65,
+    },
+    graph: {
+        show: true,
+        ceiling: 400,
+        floor: 40,
+        aspectRatio: 1.8,
+        historySeconds: 60 * 60 * 3, // 3 hours
     }
 } satisfies AppConfig;

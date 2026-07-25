@@ -15,7 +15,6 @@ export type AppConfig = {
     polling: {
         intervalSeconds: number;
         staleAfterSeconds: number;
-        historySeconds: number;
     };
     display: {
         unit: "mg/dL" | "mmol/L";
@@ -27,5 +26,12 @@ export type AppConfig = {
         highThreshold: number;
         lowThreshold: number;
         criticalLowThreshold: number;
-    }
+    };
+    graph: {
+        show: boolean;
+        ceiling: number;
+        floor: number;
+        aspectRatio: number;
+        historySeconds: number;
+    };
 }
