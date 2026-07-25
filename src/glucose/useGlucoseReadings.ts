@@ -1,17 +1,12 @@
 import { useEffect, useState } from "react";
 import { GlucoseConnector } from "../connectors/types";
 import { GlucoseReading } from "./types";
-
-type PollingStatus =
-    | "disabled"
-    | "loading"
-    | "live"
-    | "error";
+import type { ConnectionStatus } from "./displayStatus";
 
 type GlucoseState = {
     readings: GlucoseReading[];
     latestReading: GlucoseReading | null;
-    status: PollingStatus;
+    status: ConnectionStatus;
     error: string | null;
     now: number;
 };
@@ -50,17 +45,32 @@ export function useGlucoseReadings({
         let active = true;
         let controller: AbortController | null = null;
         let timeout: ReturnType<typeof setTimeout> | null = null;
+        const clock = setInterval(() => {
+            setState((current) => ({
+                ...current,
+                now: Date.now(),
+            }));
+        }, 1000);
 
         setState({
             readings: [],
             latestReading: null,
-            status: "loading",
+            status: "connecting",
             error: null,
             now: Date.now(),
         });
 
         const poll = async () => {
             controller = new AbortController();
+
+            setState((current) => current.latestReading === null
+                ? {
+                    ...current,
+                    status: "connecting",
+                    error: null,
+                    now: Date.now(),
+                }
+                : current);
 
             try {
                 const readings = await connector.getReadings({
@@ -75,7 +85,7 @@ export function useGlucoseReadings({
                 setState({
                     readings,
                     latestReading: readings.at(-1) ?? null,
-                    status: "live",
+                    status: "online",
                     error: null,
                     now: Date.now(),
                 });
@@ -86,7 +96,7 @@ export function useGlucoseReadings({
 
                 setState((current) => ({
                     ...current,
-                    status: "error",
+                    status: "offline",
                     error:
                         error instanceof Error
                             ? error.message
@@ -112,6 +122,8 @@ export function useGlucoseReadings({
             if (timeout !== null) {
                 clearTimeout(timeout);
             }
+
+            clearInterval(clock);
         };
     }, [connector, historySeconds, intervalSeconds]);
 

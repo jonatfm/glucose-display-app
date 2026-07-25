@@ -9,6 +9,7 @@ import { NavigationBar } from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import GlucoseGraph from "../components/GlucoseGraph";
 import { formatGlucose } from "../glucose/units";
+import { getGlucoseDisplayStatus } from "../glucose/displayStatus";
 
 const DISPLAY_JUSTIFY_CONTENT = {
     top: "flex-start",
@@ -63,6 +64,13 @@ function AppContent() {
         intervalSeconds: config.polling.intervalSeconds,
     });
 
+    const displayStatus = getGlucoseDisplayStatus({
+        connectionStatus: status,
+        latestReading,
+        now,
+        staleAfterSeconds: config.polling.staleAfterSeconds,
+    });
+
     if (!isLoaded) {
         return (
             <View style={styles.messageContainer}>
@@ -81,10 +89,11 @@ function AppContent() {
         )
     }
 
-    if (status === "loading") {
+    if (status === "connecting" && latestReading === null) {
         return (
             <View style={styles.messageContainer}>
                 <Text style={styles.message}>Connecting...</Text>
+                <Text style={styles.statusText}>CONNECTING</Text>
                 <Text style={styles.text}>Hold the screen to go to settings</Text>
             </View>
         )
@@ -94,6 +103,9 @@ function AppContent() {
         return (
             <View style={styles.messageContainer}>
                 <Text style={[styles.message, {color: "#ff0000"}]}>{error ?? "No glucose reading available"}</Text>
+                <Text style={styles.statusText}>
+                    {displayStatus ?? "OFFLINE"}
+                </Text>
                 <Text style={styles.text}>Hold the screen to go to settings</Text>
             </View>
         )
@@ -122,6 +134,9 @@ function AppContent() {
                 styles.bloodsugarContainer,
                 latestReading.valueMgDl <= config.display.criticalLowThreshold && {backgroundColor: "#ff0000", borderRadius: 16},
             ]}>
+                <Text style={styles.statusText}>
+                    {displayStatus}
+                </Text>
                 <Text
                     style={[
                         styles.text,
@@ -187,6 +202,9 @@ const styles = StyleSheet.create({
         color: "#fff",
         fontSize: 18,
         fontWeight: "bold",
+    },
+    statusText: {
+        color: "#fff",
     },
     messageContainer: {
         flex: 1,
