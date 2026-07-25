@@ -1,7 +1,10 @@
 import type { GlucoseReading } from "../glucose/types";
 
+export const MINIMUM_READINGS_FOR_DELTA = 2;
+
 export type ReadingRequest = {
     historySeconds: number;
+    minimumReadings: number;
     signal: AbortSignal;
 }
 

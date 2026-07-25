@@ -1,5 +1,8 @@
 import type { XdripSourceConfig } from "../../config/types";
-import type { GlucoseConnector } from "../types";
+import {
+    MINIMUM_READINGS_FOR_DELTA,
+    type GlucoseConnector,
+} from "../types";
 import { parseXdripReadings } from "./xdripParser";
 import { fetchWithTimeout } from "../fetchWithTimeout";
 
@@ -8,8 +11,16 @@ const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 export function createXdripConnector(
     config: XdripSourceConfig,
 ) : GlucoseConnector {
-    const createUrl = (historySeconds: number) => {
-        const count = Math.ceil(historySeconds / 300) + 1;
+    const createUrl = (
+        historySeconds: number,
+        minimumReadings: number,
+    ) => {
+        const historyReadingCount =
+            Math.ceil(historySeconds / 300) + 1;
+        const count = Math.max(
+            historyReadingCount,
+            minimumReadings,
+        );
         const url = new URL("/sgv.json", config.baseUrl);
 
         url.searchParams.set("count", String(count));
@@ -18,9 +29,16 @@ export function createXdripConnector(
     };
 
     return {
-        async getReadings({historySeconds, signal}) {
+        async getReadings({
+            historySeconds,
+            minimumReadings,
+            signal,
+        }) {
             const response = await fetchWithTimeout(
-                createUrl(historySeconds).toString(),
+                createUrl(
+                    historySeconds,
+                    minimumReadings,
+                ).toString(),
                 {
                     headers: {
                         Accept: "application/json",
@@ -47,6 +65,7 @@ export function createXdripConnector(
         async testConnection(signal) {
             await this.getReadings({
                 historySeconds: 1800, // 30 minutes
+                minimumReadings: MINIMUM_READINGS_FOR_DELTA,
                 signal,
             });
         },

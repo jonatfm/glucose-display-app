@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { GlucoseConnector } from "../connectors/types";
+import {
+    MINIMUM_READINGS_FOR_DELTA,
+    type GlucoseConnector,
+} from "../connectors/types";
 import { GlucoseReading } from "./types";
 import type { ConnectionStatus } from "./displayStatus";
 
@@ -75,6 +78,7 @@ export function useGlucoseReadings({
             try {
                 const readings = await connector.getReadings({
                     historySeconds,
+                    minimumReadings: MINIMUM_READINGS_FOR_DELTA,
                     signal: controller.signal,
                 });
 
