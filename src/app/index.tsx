@@ -109,11 +109,14 @@ function AppContent() {
     const isStale = ageSeconds > config.polling.staleAfterSeconds;
 
     return (
-        <View>
+        <View style={styles.bloodsugarContainer}>
             <Text
                 style={[
                     styles.text,
                     isStale && styles.staleText,
+                    {
+                        fontSize: config.display.textSize,
+                    }
                 ]}
             >
                 {formatGlucose(
@@ -121,6 +124,21 @@ function AppContent() {
                     config.display.unit,
                 )}
             </Text>
+            <View style={{flexDirection: "row", gap: config.display.textSize / 3}}>
+                {config.display.showAge ? (
+                    <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
+                        {Math.floor(ageSeconds / 60)}m
+                    </Text>
+                ) : null}
+                {config.display.showDelta && latestReading.deltaMgDl ? (
+                    <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
+                        Δ {latestReading.deltaMgDl >= 0 ? '+' : ''}{formatGlucose(
+                            latestReading.deltaMgDl,
+                            config.display.unit,
+                        )}
+                    </Text>
+                ) : null}
+            </View>
         </View>
     )
 }
@@ -139,9 +157,11 @@ export default function App() {
 const styles = StyleSheet.create({
     text: {
         color: "#fff",
+        fontWeight: "bold",
     },
     staleText: {
-        color: "#ff0000",
+        color: "#fff",
+        textDecorationLine: "line-through",
     },
     message: {
         color: "#fff",
@@ -153,5 +173,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         padding: 16,
+    },
+    bloodsugarContainer: {
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
     }
 })

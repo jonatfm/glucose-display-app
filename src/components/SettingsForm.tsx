@@ -157,6 +157,9 @@ function SettingsForm({
     const [displayUnit, setDisplayUnit] = useState(config.display.unit);
     const [displayKeepScreenAwake, setDisplayKeepScreenAwake] = useState(config.display.keepScreenAwake);
     const [displayHideSystemUi, setDisplayHideSystemUi] = useState(config.display.hideSystemUi);
+    const [displayShowAge, setDisplayShowAge] = useState(config.display.showAge);
+    const [displayShowDelta, setDisplayShowDelta] = useState(config.display.showDelta);
+    const [displayTextSize, setDisplayTextSize] = useState(config.display.textSize);
 
     useEffect(() => {
         if (!visible) {
@@ -175,6 +178,9 @@ function SettingsForm({
         setDisplayUnit(config.display.unit);
         setDisplayKeepScreenAwake(config.display.keepScreenAwake);
         setDisplayHideSystemUi(config.display.hideSystemUi);
+        setDisplayShowAge(config.display.showAge);
+        setDisplayShowDelta(config.display.showDelta);
+        setDisplayTextSize(config.display.textSize);
         setConnectionFeedback(null);
     }, [config.display, config.polling, config.source, visible]);
 
@@ -287,6 +293,9 @@ function SettingsForm({
                     unit: displayUnit,
                     keepScreenAwake: displayKeepScreenAwake,
                     hideSystemUi: displayHideSystemUi,
+                    showAge: displayShowAge,
+                    showDelta: displayShowDelta,
+                    textSize: displayTextSize,
                 },
             });
 
@@ -442,6 +451,43 @@ function SettingsForm({
                     label="Hide system UI"
                     onValueChange={setDisplayHideSystemUi}
                     value={displayHideSystemUi}
+                />
+
+                <SettingSwitch
+                    hint="Show the age of the latest reading in minutes."
+                    label="Show reading age"
+                    onValueChange={setDisplayShowAge}
+                    value={displayShowAge}
+                />
+
+                <SettingSwitch
+                    hint="Show the delta (change) of the latest reading compared to the previous one."
+                    label="Show reading delta"
+                    onValueChange={setDisplayShowDelta}
+                    value={displayShowDelta}
+                />
+
+                <NumericSettingField
+                    error={undefined}
+                    hint="The size of the text in the display. Larger values make the text easier to read."
+                    label="Text size"
+                    onBlur={() => {
+                        const value = parsePositiveSeconds(
+                            displayTextSize.toString(),
+                            "Text size",
+                        );
+                        setDisplayTextSize(value);
+                    }}
+                    onChangeText={(text) => {
+                        const trimmed = text.trim();
+                        if (/^\d+$/.test(trimmed)) {
+                            setDisplayTextSize(Number(trimmed));
+                        } else {
+                            setDisplayTextSize(0);
+                        }
+                    }}
+                    placeholder="16"
+                    value={displayTextSize.toString()}
                 />
             </View>
         </ScrollView>

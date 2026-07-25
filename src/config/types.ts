@@ -21,5 +21,8 @@ export type AppConfig = {
         unit: "mg/dL" | "mmol/L";
         keepScreenAwake: boolean;
         hideSystemUi: boolean;
+        showAge: boolean;
+        showDelta: boolean;
+        textSize: number;
     }
 }

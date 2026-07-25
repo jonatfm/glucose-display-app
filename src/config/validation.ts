@@ -40,6 +40,9 @@ export const isAppConfig = (
         (display.unit === "mg/dL" ||
             display.unit === "mmol/L") &&
         typeof display.keepScreenAwake === "boolean" &&
-        typeof display.hideSystemUi === "boolean"
+        typeof display.hideSystemUi === "boolean" &&
+        typeof display.showAge === "boolean" &&
+        typeof display.showDelta === "boolean" &&
+        isPositiveInteger(display.textSize)
     );
 };

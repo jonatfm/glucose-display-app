@@ -19,5 +19,8 @@ export const DEFAULT_APP_CONFIG = {
         unit: "mg/dL",
         keepScreenAwake: true,
         hideSystemUi: true,
+        showAge: true,
+        showDelta: true,
+        textSize: 128,
     }
 } satisfies AppConfig;
