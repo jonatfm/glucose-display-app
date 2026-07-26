@@ -13,7 +13,6 @@
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "blockedPermissions": [
@@ -25,9 +24,6 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.jonathanf.carglucosedisplay"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       [
         "expo-build-properties",
@@ -37,6 +33,15 @@
             "enableMinifyInReleaseBuilds": true,
             "usesCleartextTraffic": true
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#E6F4FE",
+          "image": "./assets/android-icon-foreground.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
         }
       ]
     ]
