@@ -15,6 +15,7 @@ import {
     saveAppConfig,
 } from "./storage";
 import type { AppConfig } from "./types";
+import { deleteNightscoutToken } from "../connectors/nightscout/nightscoutCredentials";
 
 type AppConfigContextValue = {
     config: AppConfig;
@@ -56,9 +57,24 @@ export function AppConfigProvider({
     );
 
     const resetConfig = useCallback(async () => {
+        const nightscout =
+            config.source.configurations.nightscout;
+        const credentialId =
+            nightscout.authentication === "access-token"
+            ? nightscout.credentialId
+            : null;
+
         await clearAppConfig();
         setConfig(DEFAULT_APP_CONFIG);
-    }, []);
+
+        if (credentialId !== null) {
+            try {
+                await deleteNightscoutToken(credentialId);
+            } catch (error) {
+                console.warn("Could not remove Nightscout token", error);
+            }
+        }
+    }, [config.source.configurations.nightscout]);
 
     const value = useMemo(
         () => ({

@@ -1,14 +1,29 @@
-import type {AppConfig, XdripSourceConfig} from "./types";
+import type {
+    AppConfig,
+    NightscoutSourceConfig,
+    XdripSourceConfig,
+} from "./types";
 
 export const DEFAULT_XDRIP_SOURCE_CONFIG = {
     type: "xdrip",
     baseUrl: "http://127.0.0.1:17580",
 } satisfies XdripSourceConfig;
 
+export const DEFAULT_NIGHTSCOUT_SOURCE_CONFIG = {
+    type: "nightscout",
+    baseUrl: "",
+    authentication: "none",
+    credentialId: null,
+} satisfies NightscoutSourceConfig;
+
 export const DEFAULT_APP_CONFIG = {
-    schemaVersion: 2,
+    schemaVersion: 4,
     source: {
-        type: "none",
+        selected: "none",
+        configurations: {
+            xdrip: DEFAULT_XDRIP_SOURCE_CONFIG,
+            nightscout: DEFAULT_NIGHTSCOUT_SOURCE_CONFIG,
+        },
     },
     polling: {
         intervalSeconds: 5,

@@ -11,6 +11,7 @@ import GlucoseGraph from "../components/GlucoseGraph";
 import { formatGlucose } from "../glucose/units";
 import { getGlucoseDisplayStatus } from "../glucose/displayStatus";
 import { getTrendDirectionSymbol } from "../glucose/trendDirection";
+import { getActiveSourceConfig } from "../config/activeSource";
 
 const DISPLAY_JUSTIFY_CONTENT = {
     top: "flex-start",
@@ -49,7 +50,7 @@ function AppContent() {
     const {config, isLoaded} = useAppConfig();
 
     const connector = useMemo(
-        () => createConnector(config.source),
+        () => createConnector(getActiveSourceConfig(config.source)),
         [config.source]
     );
 

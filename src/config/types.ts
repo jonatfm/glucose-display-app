@@ -7,11 +7,43 @@ export type XdripSourceConfig = {
     baseUrl: string;
 }
 
-export type SourceConfig = NoSourceConfig | XdripSourceConfig;
+export type NightscoutSourceConfig = {
+    type: "nightscout";
+    baseUrl: string;
+} & (
+    | {
+        authentication: "none";
+        credentialId: null;
+    }
+    | {
+        authentication: "access-token";
+        credentialId: string;
+    }
+);
+
+export type SourceConfig =
+    | NoSourceConfig
+    | XdripSourceConfig
+    | NightscoutSourceConfig;
+
+export type SourceType = SourceConfig["type"];
+
+type ConnectorSourceConfig =
+    Exclude<SourceConfig, NoSourceConfig>;
+
+export type ConnectorConfigurations = {
+    [Type in ConnectorSourceConfig["type"]]:
+        Extract<ConnectorSourceConfig, {type: Type}>;
+};
+
+export type SourceSettings = {
+    selected: SourceType;
+    configurations: ConnectorConfigurations;
+};
 
 export type AppConfig = {
-    schemaVersion: 2,
-    source: SourceConfig;
+    schemaVersion: 4,
+    source: SourceSettings;
     polling: {
         intervalSeconds: number;
         staleAfterSeconds: number;

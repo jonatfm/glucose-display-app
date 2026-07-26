@@ -6,13 +6,27 @@ import {
     useState,
 } from "react";
 import { useAppConfig } from "../config/AppConfigProvider";
-import { AppConfig, SourceConfig } from "../config/types";
-import { DEFAULT_APP_CONFIG, DEFAULT_XDRIP_SOURCE_CONFIG } from "../config/defaults";
+import type {
+    AppConfig,
+    NightscoutSourceConfig,
+    SourceConfig,
+} from "../config/types";
+import {
+    DEFAULT_APP_CONFIG,
+    DEFAULT_NIGHTSCOUT_SOURCE_CONFIG,
+    DEFAULT_XDRIP_SOURCE_CONFIG,
+} from "../config/defaults";
 import {
     getGlucoseRangeIssues,
     type GlucoseRangeIssue,
 } from "../config/glucoseRanges";
 import { createConnector } from "../connectors/createConnector";
+import {
+    createCredentialId,
+    deleteNightscoutToken,
+    storeNightscoutToken,
+} from "../connectors/nightscout/nightscoutCredentials";
+import { normalizeNightscoutInput } from "../connectors/nightscout/nightscoutUrl";
 import {
     formatGlucoseInput,
     glucoseValueToMgDl,
@@ -38,6 +52,8 @@ export type SettingsFormHandle = {
 };
 
 type SourceType = SourceConfig["type"];
+type NightscoutAuthentication =
+    NightscoutSourceConfig["authentication"];
 type PollingField = keyof AppConfig["polling"];
 type PollingDraft = Record<PollingField, string>;
 type PollingErrors = Partial<Record<PollingField, string>>;
@@ -383,6 +399,11 @@ const parseXdripSource = (
     };
 };
 
+type DraftSource = {
+    source: SourceConfig;
+    nightscoutToken: string | null;
+};
+
 const SettingsForm = forwardRef<SettingsFormHandle, SettingsFormProps>(
 function SettingsForm({
     visible,
@@ -393,6 +414,11 @@ function SettingsForm({
     // glucose source settings
     const [sourceType, setSourceType] = useState<SourceType>("none");
     const [xdripBaseUrl, setXdripBaseUrl] = useState(DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl);
+    const [nightscoutBaseUrl, setNightscoutBaseUrl] =
+        useState(DEFAULT_NIGHTSCOUT_SOURCE_CONFIG.baseUrl);
+    const [nightscoutAuthentication, setNightscoutAuthentication] =
+        useState<NightscoutAuthentication>("none");
+    const [nightscoutTokenDraft, setNightscoutTokenDraft] = useState("");
     const [connectionFeedback, setConnectionFeedback] = useState<string | null>(null);
     const [isWorking, setIsWorking] = useState(false);
     const testController = useRef<AbortController | null>(null);
@@ -430,15 +456,21 @@ function SettingsForm({
     useEffect(() => {
         if (!visible) {
             testController.current?.abort();
+            setNightscoutTokenDraft("");
             return;
         }
 
-        setSourceType(config.source.type);
+        setSourceType(config.source.selected);
         setXdripBaseUrl(
-            config.source.type === "xdrip"
-                ? config.source.baseUrl
-                : DEFAULT_XDRIP_SOURCE_CONFIG.baseUrl,
+            config.source.configurations.xdrip.baseUrl,
         );
+        setNightscoutBaseUrl(
+            config.source.configurations.nightscout.baseUrl,
+        );
+        setNightscoutAuthentication(
+            config.source.configurations.nightscout.authentication,
+        );
+        setNightscoutTokenDraft("");
         setPollingDraft(createPollingDraft(config.polling));
         setPollingErrors({});
         setDisplayUnit(config.display.unit);
@@ -465,14 +497,89 @@ function SettingsForm({
         [],
     );
 
-    const createDraftSource = (): SourceConfig => {
+    const createDraftSource = (): DraftSource => {
         if (sourceType === "none") {
             return {
-                type: "none",
+                source: {type: "none"},
+                nightscoutToken: null,
             };
         }
 
-        return parseXdripSource(xdripBaseUrl);
+        if (sourceType === "xdrip") {
+            return {
+                source: parseXdripSource(xdripBaseUrl),
+                nightscoutToken: null,
+            };
+        }
+
+        const normalized = normalizeNightscoutInput(nightscoutBaseUrl);
+        const nightscoutToken =
+            normalized.token ??
+            (nightscoutTokenDraft.trim() || null);
+
+        if (nightscoutAuthentication === "none" &&
+            nightscoutToken !== null) {
+            throw new Error(
+                "Select access-token authentication to use the pasted token",
+            );
+        }
+
+        if (nightscoutAuthentication === "none") {
+            return {
+                source: {
+                    type: "nightscout",
+                    baseUrl: normalized.baseUrl,
+                    authentication: "none",
+                    credentialId: null,
+                },
+                nightscoutToken: null,
+            };
+        }
+
+        const storedNightscout =
+            config.source.configurations.nightscout;
+        const existingCredentialId =
+            storedNightscout.authentication === "access-token"
+                ? storedNightscout.credentialId
+                : null;
+
+        if (nightscoutToken === null &&
+            existingCredentialId === null) {
+            throw new Error("Enter a Nightscout access token");
+        }
+
+        return {
+            source: {
+                type: "nightscout",
+                baseUrl: normalized.baseUrl,
+                authentication: "access-token",
+                credentialId: existingCredentialId ?? "pending",
+            },
+            nightscoutToken,
+        };
+    };
+
+    const updateNightscoutBaseUrl = (text: string) => {
+        setConnectionFeedback(null);
+
+        if (!/[?&]token=/i.test(text)) {
+            setNightscoutBaseUrl(text);
+            return;
+        }
+
+        try {
+            const normalized = normalizeNightscoutInput(text);
+            setNightscoutBaseUrl(normalized.baseUrl);
+
+            if (normalized.token !== null) {
+                setNightscoutAuthentication("access-token");
+                setNightscoutTokenDraft(normalized.token);
+            }
+        } catch {
+            setNightscoutBaseUrl(text.replace(/[?#].*$/, ""));
+            setNightscoutTokenDraft("");
+            setConnectionFeedback("Enter a valid Nightscout token link");
+        }
     };
 
     const updatePollingField = (
@@ -687,8 +794,10 @@ function SettingsForm({
         testController.current = new AbortController();
 
         try {
-            const source = createDraftSource();
-            const connector = createConnector(source);
+            const {source, nightscoutToken} = createDraftSource();
+            const connector = createConnector(source, {
+                nightscoutToken: nightscoutToken ?? undefined,
+            });
 
             if (connector === null) {
                 throw new Error("Select a connector before testing");
@@ -761,32 +870,104 @@ function SettingsForm({
         setIsWorking(true);
 
         try {
-            const source = createDraftSource();
+            const {
+                source: draftSource,
+                nightscoutToken,
+            } = createDraftSource();
+            let source = draftSource;
+            let newCredentialId: string | null = null;
 
-            await replaceConfig({
-                ...config,
-                source,
-                polling,
-                display: {
-                    unit: displayUnit,
-                    keepScreenAwake: displayKeepScreenAwake,
-                    hideSystemUi: displayHideSystemUi,
-                    showAge: displayShowAge,
-                    showDelta: displayShowDelta,
-                    showTrend: displayShowTrend,
-                    textSize: displayNumbers.textSize,
-                    highThreshold: displayNumbers.highThreshold,
-                    lowThreshold: displayNumbers.lowThreshold,
-                    criticalLowThreshold:
-                        displayNumbers.criticalLowThreshold,
-                    align: displayAlign,
-                },
-                graph: {
-                    show: graphShow,
-                    ...graph,
-                },
-            });
+            if (source.type === "nightscout" &&
+                source.authentication === "access-token" &&
+                nightscoutToken !== null) {
+                newCredentialId = createCredentialId();
+                await storeNightscoutToken(
+                    newCredentialId,
+                    nightscoutToken,
+                );
+                source = {
+                    ...source,
+                    credentialId: newCredentialId,
+                };
+            }
 
+            const configurations = {
+                ...config.source.configurations,
+                ...(source.type === "xdrip"
+                    ? {xdrip: source}
+                    : {}),
+                ...(source.type === "nightscout"
+                    ? {nightscout: source}
+                    : {}),
+            };
+
+            try {
+                await replaceConfig({
+                    ...config,
+                    source: {
+                        selected: sourceType,
+                        configurations,
+                    },
+                    polling,
+                    display: {
+                        unit: displayUnit,
+                        keepScreenAwake: displayKeepScreenAwake,
+                        hideSystemUi: displayHideSystemUi,
+                        showAge: displayShowAge,
+                        showDelta: displayShowDelta,
+                        showTrend: displayShowTrend,
+                        textSize: displayNumbers.textSize,
+                        highThreshold: displayNumbers.highThreshold,
+                        lowThreshold: displayNumbers.lowThreshold,
+                        criticalLowThreshold:
+                            displayNumbers.criticalLowThreshold,
+                        align: displayAlign,
+                    },
+                    graph: {
+                        show: graphShow,
+                        ...graph,
+                    },
+                });
+            } catch (error) {
+                if (newCredentialId !== null) {
+                    try {
+                        await deleteNightscoutToken(newCredentialId);
+                    } catch (cleanupError) {
+                        console.warn(
+                            "Could not roll back the new Nightscout token",
+                            cleanupError,
+                        );
+                    }
+                }
+
+                throw error;
+            }
+
+            const previousNightscout =
+                config.source.configurations.nightscout;
+            const oldCredentialId =
+                previousNightscout.authentication === "access-token"
+                    ? previousNightscout.credentialId
+                    : null;
+            const nextNightscout = configurations.nightscout;
+            const nextCredentialId =
+                nextNightscout.authentication === "access-token"
+                    ? nextNightscout.credentialId
+                    : null;
+
+            if (oldCredentialId !== null &&
+                oldCredentialId !== nextCredentialId) {
+                try {
+                    await deleteNightscoutToken(oldCredentialId);
+                } catch (error) {
+                    console.warn(
+                        "Could not remove the previous Nightscout token",
+                        error,
+                    );
+                }
+            }
+
+            setNightscoutTokenDraft("");
             onFinished();
         } catch (error) {
             setConnectionFeedback(
@@ -805,6 +986,7 @@ function SettingsForm({
 
     const cancel = () => {
         testController.current?.abort();
+        setNightscoutTokenDraft("");
         onFinished();
     };
 
@@ -823,6 +1005,7 @@ function SettingsForm({
                     label="None"
                     onPress={() => {
                         setSourceType("none");
+                        setNightscoutTokenDraft("");
                         setConnectionFeedback(null);
                     }}
                 />
@@ -831,6 +1014,15 @@ function SettingsForm({
                     label="xDrip"
                     onPress={() => {
                         setSourceType("xdrip");
+                        setNightscoutTokenDraft("");
+                        setConnectionFeedback(null);
+                    }}
+                />
+                <SourceButton
+                    active={sourceType === "nightscout"}
+                    label="Nightscout"
+                    onPress={() => {
+                        setSourceType("nightscout");
                         setConnectionFeedback(null);
                     }}
                 />
@@ -850,6 +1042,101 @@ function SettingsForm({
                         style={styles.input}
                         value={xdripBaseUrl}
                     />
+
+                    <Pressable
+                        disabled={isWorking}
+                        onPress={testConnection}
+                        style={styles.secondaryButton}
+                    >
+                        <Text style={styles.buttonText}>
+                            {isWorking
+                                ? "Testing..."
+                                : "Test connection"}
+                        </Text>
+                    </Pressable>
+                </View>
+            ) : null}
+
+            {sourceType === "nightscout" ? (
+                <View style={styles.field}>
+                    <Text style={styles.label}>
+                        Nightscout server address
+                    </Text>
+                    <TextInput
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        keyboardType="url"
+                        onChangeText={updateNightscoutBaseUrl}
+                        placeholder="https://example.com"
+                        placeholderTextColor="#888"
+                        style={styles.input}
+                        value={nightscoutBaseUrl}
+                    />
+                    <Text style={styles.inputHint}>
+                        HTTPS is required. Reverse-proxy paths and Nightscout
+                        token links are supported.
+                    </Text>
+
+                    <Text style={styles.label}>Authentication</Text>
+                    <View
+                        accessibilityRole="radiogroup"
+                        style={styles.sourceRow}
+                    >
+                        <SourceButton
+                            active={nightscoutAuthentication === "none"}
+                            label="Public"
+                            onPress={() => {
+                                setNightscoutAuthentication("none");
+                                setNightscoutTokenDraft("");
+                                setConnectionFeedback(null);
+                            }}
+                        />
+                        <SourceButton
+                            active={
+                                nightscoutAuthentication === "access-token"
+                            }
+                            label="Access token"
+                            onPress={() => {
+                                setNightscoutAuthentication("access-token");
+                                setConnectionFeedback(null);
+                            }}
+                        />
+                    </View>
+
+                    {nightscoutAuthentication === "access-token" ? (
+                        <>
+                            <Text style={styles.label}>
+                                Read-only access token
+                            </Text>
+                            <TextInput
+                                autoCapitalize="none"
+                                autoComplete="off"
+                                autoCorrect={false}
+                                onChangeText={setNightscoutTokenDraft}
+                                placeholder={
+                                    config.source.configurations.nightscout
+                                        .authentication ===
+                                        "access-token"
+                                        ? "Token stored — enter to replace"
+                                        : "Enter token"
+                                }
+                                placeholderTextColor="#888"
+                                secureTextEntry
+                                style={styles.input}
+                                textContentType="none"
+                                value={nightscoutTokenDraft}
+                            />
+                            <Text style={styles.inputHint}>
+                                Stored in the device Keychain or Keystore,
+                                never in app settings or request URLs.
+                            </Text>
+                        </>
+                    ) : (
+                        <Text style={styles.inputHint}>
+                            Public mode sends no credential. Glucose data
+                            remains sensitive, so use a trusted server.
+                        </Text>
+                    )}
 
                     <Pressable
                         disabled={isWorking}
@@ -1282,6 +1569,7 @@ const styles = StyleSheet.create({
     },
     sourceRow: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: 12,
     },
     sourceButton: {

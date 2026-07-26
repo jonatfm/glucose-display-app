@@ -16,6 +16,24 @@ const isPositiveNumber = (value: unknown): value is number =>
     Number.isFinite(value) &&
     value > 0;
 
+const isSafeNightscoutBaseUrl = (value: unknown): value is string => {
+    if (typeof value !== "string") {
+        return false;
+    }
+
+    try {
+        const url = new URL(value);
+
+        return url.protocol === "https:" &&
+            url.username.length === 0 &&
+            url.password.length === 0 &&
+            url.search.length === 0 &&
+            url.hash.length === 0;
+    } catch {
+        return false;
+    }
+};
+
 export const isAppConfig = (
     value: unknown,
 ): value is AppConfig => {
@@ -28,15 +46,45 @@ export const isAppConfig = (
     const isValidSource =
         isObject(source) &&
         (
-            source.type === "none" ||
+            source.selected === "none" ||
+            source.selected === "xdrip" ||
+            source.selected === "nightscout"
+        ) &&
+        isObject(source.configurations) &&
+        isObject(source.configurations.xdrip) &&
+        source.configurations.xdrip.type === "xdrip" &&
+        typeof source.configurations.xdrip.baseUrl === "string" &&
+        isObject(source.configurations.nightscout) &&
+        source.configurations.nightscout.type === "nightscout" &&
+        (
+            source.configurations.nightscout.baseUrl === "" ||
+            isSafeNightscoutBaseUrl(
+                source.configurations.nightscout.baseUrl,
+            )
+        ) &&
+        (
+            source.selected !== "nightscout" ||
+            isSafeNightscoutBaseUrl(
+                source.configurations.nightscout.baseUrl,
+            )
+        ) &&
+        (
             (
-                source.type === "xdrip" &&
-                typeof source.baseUrl === "string"
+                source.configurations.nightscout.authentication ===
+                    "none" &&
+                source.configurations.nightscout.credentialId === null
+            ) ||
+            (
+                source.configurations.nightscout.authentication ===
+                    "access-token" &&
+                typeof source.configurations.nightscout.credentialId ===
+                    "string" &&
+                source.configurations.nightscout.credentialId.length > 0
             )
         );
 
     const hasValidShape = (
-        value.schemaVersion === 2 &&
+        value.schemaVersion === 4 &&
         isValidSource &&
         isObject(polling) &&
         isPositiveInteger(polling.intervalSeconds) &&
