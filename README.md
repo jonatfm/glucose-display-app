@@ -2,9 +2,9 @@
 
 This is a small utility application I have made to easily see my blood sugar at a glance while driving my car. It provides a focused display using data from xDrip or Nightscout.
 
-Originally called "Car GLucose Display", the app also proved useful at the gym and while studying. Its clean display keeps glucose information visible while keeping the screen awake.
+Originally called "Car Glucose Display", the app also proved useful at the gym and while studying. Its clean display keeps glucose information visible while keeping the screen awake.
 
-![What it looks like](./app.png)
+<img src="./docs/images/glucose-display.webp" alt="Glucose Display showing a glucose reading, reading age, insulin on board, and history graph" width="280">
 
 ## Features
 
