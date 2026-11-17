@@ -84,7 +84,7 @@ export const isAppConfig = (
         );
 
     const hasValidShape = (
-        value.schemaVersion === 5 &&
+        value.schemaVersion === 6 &&
         isValidSource &&
         isObject(polling) &&
         isPositiveInteger(polling.intervalSeconds) &&
@@ -92,6 +92,7 @@ export const isAppConfig = (
         isObject(display) &&
         (display.unit === "mg/dL" ||
             display.unit === "mmol/L") &&
+        (display.decimalSeparator === "." || display.decimalSeparator === ",") &&
         typeof display.keepScreenAwake === "boolean" &&
         typeof display.hideSystemUi === "boolean" &&
         typeof display.showAge === "boolean" &&

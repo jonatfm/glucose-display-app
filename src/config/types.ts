@@ -27,6 +27,7 @@ export type SourceConfig =
     | NightscoutSourceConfig;
 
 export type SourceType = SourceConfig["type"];
+export type DecimalSeparator = "." | ",";
 
 type ConnectorSourceConfig =
     Exclude<SourceConfig, NoSourceConfig>;
@@ -42,7 +43,7 @@ export type SourceSettings = {
 };
 
 export type AppConfig = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     source: SourceSettings;
     polling: {
         intervalSeconds: number;
@@ -50,6 +51,7 @@ export type AppConfig = {
     };
     display: {
         unit: "mg/dL" | "mmol/L";
+        decimalSeparator: DecimalSeparator;
         keepScreenAwake: boolean;
         hideSystemUi: boolean;
         showAge: boolean;

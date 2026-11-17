@@ -17,7 +17,7 @@ export const DEFAULT_NIGHTSCOUT_SOURCE_CONFIG = {
 } satisfies NightscoutSourceConfig;
 
 export const DEFAULT_APP_CONFIG = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     source: {
         selected: "none",
         configurations: {
@@ -31,6 +31,7 @@ export const DEFAULT_APP_CONFIG = {
     },
     display: {
         unit: "mg/dL",
+        decimalSeparator: ".",
         keepScreenAwake: true,
         hideSystemUi: true,
         showAge: true,

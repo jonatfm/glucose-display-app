@@ -84,7 +84,11 @@ export const parseXdripInsulinOnBoard = (
         : null;
     // xDrip computes IOB at request time, independently of the glucose age.
     const timestamp = asTimestamp(status?.now);
-    const units = asNumber(bg?.iob);
+    // xDrip's Pebble API formats IOB using the phone's decimal separator.
+    // Accept either separator regardless of the display preference.
+    const units = asNumber(typeof bg?.iob === "string"
+        ? bg.iob.replace(",", ".")
+        : bg?.iob);
     return units !== null && timestamp !== null
         ? {units, measuredAt: new Date(timestamp)}
         : null;

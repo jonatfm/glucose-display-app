@@ -72,5 +72,13 @@ export const migrateAppConfig = (value: unknown): unknown => {
         };
     }
 
+    if (migrated.schemaVersion === 5 && isObject(migrated.display)) {
+        migrated = {
+            ...migrated,
+            schemaVersion: 6,
+            display: {...migrated.display, decimalSeparator: "."},
+        };
+    }
+
     return migrated;
 };

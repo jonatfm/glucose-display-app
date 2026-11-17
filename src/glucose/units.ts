@@ -1,4 +1,4 @@
-import type { AppConfig } from "../config/types";
+import type { AppConfig, DecimalSeparator } from "../config/types";
 
 export type GlucoseUnit = AppConfig["display"]["unit"];
 
@@ -23,9 +23,10 @@ export const glucoseValueFromMgDl = (
 export const formatGlucose = (
     valueMgDl: number,
     unit: GlucoseUnit,
+    decimalSeparator: DecimalSeparator = ".",
 ): string =>
     unit === "mmol/L"
-        ? glucoseValueFromMgDl(valueMgDl, unit).toFixed(1)
+        ? glucoseValueFromMgDl(valueMgDl, unit).toFixed(1).replace(".", decimalSeparator)
         : String(Math.round(valueMgDl));
 
 export const formatGlucoseInput = (

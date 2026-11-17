@@ -434,6 +434,7 @@ function SettingsForm({
 
     // display settings
     const [displayUnit, setDisplayUnit] = useState(config.display.unit);
+    const [useDecimalComma, setUseDecimalComma] = useState(config.display.decimalSeparator === ",");
     const [displayKeepScreenAwake, setDisplayKeepScreenAwake] = useState(config.display.keepScreenAwake);
     const [displayHideSystemUi, setDisplayHideSystemUi] = useState(config.display.hideSystemUi);
     const [displayShowAge, setDisplayShowAge] = useState(config.display.showAge);
@@ -478,6 +479,7 @@ function SettingsForm({
         setPollingDraft(createPollingDraft(config.polling));
         setPollingErrors({});
         setDisplayUnit(config.display.unit);
+        setUseDecimalComma(config.display.decimalSeparator === ",");
         setDisplayKeepScreenAwake(config.display.keepScreenAwake);
         setDisplayHideSystemUi(config.display.hideSystemUi);
         setDisplayShowAge(config.display.showAge);
@@ -915,6 +917,7 @@ function SettingsForm({
                     polling,
                     display: {
                         unit: displayUnit,
+                        decimalSeparator: useDecimalComma ? "," : ".",
                         keepScreenAwake: displayKeepScreenAwake,
                         hideSystemUi: displayHideSystemUi,
                         showAge: displayShowAge,
@@ -1233,6 +1236,26 @@ function SettingsForm({
                             active={displayAlign === "bottom"}
                             label="Bottom"
                             onPress={() => setDisplayAlign("bottom")}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.field}>
+                    <Text style={styles.label}>Decimal separator</Text>
+                    <View
+                        accessibilityLabel="Decimal separator"
+                        accessibilityRole="radiogroup"
+                        style={styles.sourceRow}
+                    >
+                        <SourceButton
+                            active={!useDecimalComma}
+                            label="Dot (1.25)"
+                            onPress={() => setUseDecimalComma(false)}
+                        />
+                        <SourceButton
+                            active={useDecimalComma}
+                            label="Comma (1,25)"
+                            onPress={() => setUseDecimalComma(true)}
                         />
                     </View>
                 </View>

@@ -1,9 +1,12 @@
 import type { InsulinDose, InsulinOnBoard } from "./types";
+import type { DecimalSeparator } from "../config/types";
 
 export const INSULIN_COLOR = "#4da6ff";
 
-export const formatInsulin = (units: number): string =>
-    `${Number(units.toFixed(2))} U`;
+export const formatInsulin = (
+    units: number,
+    decimalSeparator: DecimalSeparator = ".",
+): string => `${String(Number(units.toFixed(2))).replace(".", decimalSeparator)} U`;
 
 export const isInsulinOnBoardFresh = (
     iob: InsulinOnBoard | null,
@@ -18,13 +21,15 @@ export const isInsulinOnBoardFresh = (
 const LABEL_WIDTH = 64;
 export const DOSE_ROW_HEIGHT = 26;
 
-// Keep the dot and guide at the exact time; stagger amount labels when needed.
+// Keep each dose's amount, dot and guide at its own time. Stagger labels
+// into separate rows when neighbouring amounts would overlap.
 export const layoutInsulinDoses = (
     doses: InsulinDose[],
     now: number,
     historySeconds: number,
     width: number,
 ) => {
+    if (!Number.isFinite(width) || width <= 0 || historySeconds <= 0) return [];
     const rowEnds: number[] = [];
     return doses
         .filter((dose) => {
@@ -37,10 +42,9 @@ export const layoutInsulinDoses = (
         .map((dose) => {
             const fraction = 1 -
                 (now - dose.deliveredAt.getTime()) / (historySeconds * 1000);
-            const x = fraction * width;
             const labelWidth = Math.min(LABEL_WIDTH, width);
             const labelLeft = Math.max(0, Math.min(
-                x - labelWidth / 2,
+                fraction * width - labelWidth / 2,
                 width - labelWidth,
             ));
             let row = rowEnds.findIndex((end) => labelLeft >= end + 4);

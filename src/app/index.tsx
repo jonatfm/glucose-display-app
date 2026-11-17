@@ -174,6 +174,7 @@ function AppContent() {
                     {formatGlucose(
                         latestReading.valueMgDl,
                         config.display.unit,
+                        config.display.decimalSeparator,
                     )}
                     {!config.display.showTrend ||
                     trendDirection === null
@@ -192,18 +193,19 @@ function AppContent() {
                             Δ {latestReading.deltaMgDl >= 0 ? '+' : ''}{formatGlucose(
                                 latestReading.deltaMgDl,
                                 config.display.unit,
+                                config.display.decimalSeparator,
                             )}
                         </Text>
                     ) : null}
                     {config.display.showInsulinOnBoard ? (
                         <Text
                             accessibilityLabel={isInsulinOnBoardFresh(insulinOnBoard, now, config.polling.staleAfterSeconds)
-                                ? `Insulin on board: ${formatInsulin(insulinOnBoard.units)}`
+                                ? `Insulin on board: ${formatInsulin(insulinOnBoard.units, config.display.decimalSeparator)}`
                                 : "Insulin on board unavailable"}
                             style={[styles.text, {color: INSULIN_COLOR, fontSize: config.display.textSize / 4}]}
                         >
                             {isInsulinOnBoardFresh(insulinOnBoard, now, config.polling.staleAfterSeconds)
-                                ? formatInsulin(insulinOnBoard.units)
+                                ? formatInsulin(insulinOnBoard.units, config.display.decimalSeparator)
                                 : "—"}
                         </Text>
                     ) : null}
