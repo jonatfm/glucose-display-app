@@ -60,5 +60,17 @@ export const migrateAppConfig = (value: unknown): unknown => {
         };
     }
 
+    if (migrated.schemaVersion === 4 &&
+        isObject(migrated.display)) {
+        migrated = {
+            ...migrated,
+            schemaVersion: 5,
+            display: {
+                ...migrated.display,
+                showInsulinOnBoard: false,
+            },
+        };
+    }
+
     return migrated;
 };

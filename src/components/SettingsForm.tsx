@@ -435,6 +435,7 @@ function SettingsForm({
     const [displayHideSystemUi, setDisplayHideSystemUi] = useState(config.display.hideSystemUi);
     const [displayShowAge, setDisplayShowAge] = useState(config.display.showAge);
     const [displayShowDelta, setDisplayShowDelta] = useState(config.display.showDelta);
+    const [displayShowInsulinOnBoard, setDisplayShowInsulinOnBoard] = useState(config.display.showInsulinOnBoard);
     const [displayShowTrend, setDisplayShowTrend] = useState(config.display.showTrend);
     const [displayNumberDraft, setDisplayNumberDraft] =
         useState<DisplayNumberDraft>(
@@ -478,6 +479,7 @@ function SettingsForm({
         setDisplayHideSystemUi(config.display.hideSystemUi);
         setDisplayShowAge(config.display.showAge);
         setDisplayShowDelta(config.display.showDelta);
+        setDisplayShowInsulinOnBoard(config.display.showInsulinOnBoard);
         setDisplayShowTrend(config.display.showTrend);
         setDisplayNumberDraft(
             createDisplayNumberDraft(config.display, config.display.unit),
@@ -915,6 +917,7 @@ function SettingsForm({
                         hideSystemUi: displayHideSystemUi,
                         showAge: displayShowAge,
                         showDelta: displayShowDelta,
+                        showInsulinOnBoard: displayShowInsulinOnBoard,
                         showTrend: displayShowTrend,
                         textSize: displayNumbers.textSize,
                         highThreshold: displayNumbers.highThreshold,
@@ -1257,6 +1260,13 @@ function SettingsForm({
                     label="Show reading delta"
                     onValueChange={setDisplayShowDelta}
                     value={displayShowDelta}
+                />
+
+                <SettingSwitch
+                    hint="Show active insulin beside reading age and delta, and blue dose markers below the graph. Requires insulin data from your source. In xDrip, enable IOB in its API endpoint settings."
+                    label="Show insulin on board"
+                    onValueChange={setDisplayShowInsulinOnBoard}
+                    value={displayShowInsulinOnBoard}
                 />
 
                 <SettingSwitch

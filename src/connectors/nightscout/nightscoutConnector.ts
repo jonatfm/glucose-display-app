@@ -6,7 +6,8 @@ import {
 } from "../types";
 import { loadNightscoutToken } from "./nightscoutCredentials";
 import { parseNightscoutReadings } from "./nightscoutParser";
-import { createNightscoutReadingsUrl } from "./nightscoutUrl";
+import { createNightscoutInsulinUrl, createNightscoutReadingsUrl } from "./nightscoutUrl";
+import { parseInsulinDoses, parseNightscoutInsulinOnBoard } from "../../insulin/parser";
 
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -47,6 +48,23 @@ export const createNightscoutConnector = (
 
         tokenPromise ??= loadNightscoutToken(config.credentialId);
         return tokenPromise;
+    };
+
+    const getInsulinJson = async (url: URL, signal: AbortSignal): Promise<unknown> => {
+        const token = await getToken();
+        if (config.authentication === "access-token" && token === null) {
+            throw new Error("The stored Nightscout token is unavailable");
+        }
+        const response = await fetchWithTimeout(url.toString(), {
+            headers: {
+                Accept: "application/json",
+                ...(token === null ? {} : {"api-secret": token}),
+            },
+            redirect: "error",
+            signal,
+        }, REQUEST_TIMEOUT_MILLISECONDS);
+        if (!response.ok) throw responseError(response.status);
+        return response.json();
     };
 
     return {
@@ -127,6 +145,22 @@ export const createNightscoutConnector = (
             }
 
             return readings;
+        },
+
+        async getInsulinOnBoard(signal) {
+            const payload = await getInsulinJson(
+                createNightscoutInsulinUrl(config.baseUrl, "iob"), signal,
+            );
+            return parseNightscoutInsulinOnBoard(payload);
+        },
+
+        async getInsulinDoses({historySeconds, signal}) {
+            const now = Date.now();
+            const payload = await getInsulinJson(
+                createNightscoutInsulinUrl(config.baseUrl, "treatments", historySeconds, now),
+                signal,
+            );
+            return parseInsulinDoses(payload, historySeconds, now);
         },
 
         async testConnection(signal) {

@@ -42,7 +42,7 @@ export type SourceSettings = {
 };
 
 export type AppConfig = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     source: SourceSettings;
     polling: {
         intervalSeconds: number;
@@ -54,6 +54,7 @@ export type AppConfig = {
         hideSystemUi: boolean;
         showAge: boolean;
         showDelta: boolean;
+        showInsulinOnBoard: boolean;
         showTrend: boolean;
         textSize: number;
         highThreshold: number;

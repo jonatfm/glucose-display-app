@@ -17,7 +17,7 @@ export const DEFAULT_NIGHTSCOUT_SOURCE_CONFIG = {
 } satisfies NightscoutSourceConfig;
 
 export const DEFAULT_APP_CONFIG = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     source: {
         selected: "none",
         configurations: {
@@ -35,6 +35,7 @@ export const DEFAULT_APP_CONFIG = {
         hideSystemUi: true,
         showAge: true,
         showDelta: true,
+        showInsulinOnBoard: false,
         showTrend: false,
         textSize: 128,
         highThreshold: 180,

@@ -12,6 +12,8 @@ import { formatGlucose } from "../glucose/units";
 import { getGlucoseDisplayStatus } from "../glucose/displayStatus";
 import { getTrendDirectionSymbol } from "../glucose/trendDirection";
 import { getActiveSourceConfig } from "../config/activeSource";
+import { useInsulinData } from "../insulin/useInsulinData";
+import { formatInsulin, INSULIN_COLOR, isInsulinOnBoardFresh } from "../insulin/display";
 
 const DISPLAY_JUSTIFY_CONTENT = {
     top: "flex-start",
@@ -65,6 +67,13 @@ function AppContent() {
         historySeconds: config.graph.show
             ? config.graph.historySeconds
             : 0,
+        intervalSeconds: config.polling.intervalSeconds,
+    });
+
+    const {insulinOnBoard, doses} = useInsulinData({
+        connector: isLoaded ? connector : null,
+        enabled: config.display.showInsulinOnBoard,
+        historySeconds: config.graph.show ? config.graph.historySeconds : 0,
         intervalSeconds: config.polling.intervalSeconds,
     });
 
@@ -171,7 +180,7 @@ function AppContent() {
                         ? null
                         : ` ${trendDirection}`}
                 </Text>
-                <View style={{flexDirection: "row", gap: config.display.textSize / 3}}>
+                <View style={{flexDirection: "row", flexWrap: "wrap", justifyContent: "center", columnGap: config.display.textSize / 3, rowGap: 4}}>
                     {config.display.showAge ? (
                         <Text style={[styles.text, {fontSize: config.display.textSize / 4}]}>
                             {Math.floor(ageSeconds / 60)}m
@@ -186,11 +195,23 @@ function AppContent() {
                             )}
                         </Text>
                     ) : null}
+                    {config.display.showInsulinOnBoard ? (
+                        <Text
+                            accessibilityLabel={isInsulinOnBoardFresh(insulinOnBoard, now, config.polling.staleAfterSeconds)
+                                ? `Insulin on board: ${formatInsulin(insulinOnBoard.units)}`
+                                : "Insulin on board unavailable"}
+                            style={[styles.text, {color: INSULIN_COLOR, fontSize: config.display.textSize / 4}]}
+                        >
+                            {isInsulinOnBoardFresh(insulinOnBoard, now, config.polling.staleAfterSeconds)
+                                ? formatInsulin(insulinOnBoard.units)
+                                : "—"}
+                        </Text>
+                    ) : null}
                 </View>
             </View>
 
             {config.graph.show ? (
-                <GlucoseGraph now={now} readings={readings} />
+                <GlucoseGraph now={now} readings={readings} doses={doses} />
             ) : null}
         </View>
     )

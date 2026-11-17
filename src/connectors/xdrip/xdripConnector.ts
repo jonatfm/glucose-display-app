@@ -5,6 +5,7 @@ import {
 } from "../types";
 import { parseXdripReadings } from "./xdripParser";
 import { fetchWithTimeout } from "../fetchWithTimeout";
+import { parseInsulinDoses, parseXdripInsulinOnBoard } from "../../insulin/parser";
 
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -26,6 +27,16 @@ export function createXdripConnector(
         url.searchParams.set("count", String(count));
 
         return url;
+    };
+
+    const getInsulinJson = async (path: string, signal: AbortSignal): Promise<unknown> => {
+        const response = await fetchWithTimeout(
+            new URL(path, config.baseUrl).toString(),
+            {headers: {Accept: "application/json"}, signal},
+            REQUEST_TIMEOUT_MILLISECONDS,
+        );
+        if (!response.ok) throw new Error(`xDrip returned HTTP ${response.status}`);
+        return response.json();
     };
 
     return {
@@ -60,6 +71,15 @@ export function createXdripConnector(
             }
             
             return readings;
+        },
+
+        async getInsulinOnBoard(signal) {
+            return parseXdripInsulinOnBoard(await getInsulinJson("/pebble", signal));
+        },
+
+        async getInsulinDoses({historySeconds, signal}) {
+            const payload = await getInsulinJson("/treatments.json?count=100", signal);
+            return parseInsulinDoses(payload, historySeconds);
         },
 
         async testConnection(signal) {

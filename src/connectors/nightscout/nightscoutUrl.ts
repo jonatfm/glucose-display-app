@@ -73,3 +73,24 @@ export const createNightscoutReadingsUrl = (
     url.searchParams.set("count", String(count));
     return url;
 };
+
+export const createNightscoutInsulinUrl = (
+    baseUrl: string,
+    kind: "iob" | "treatments",
+    historySeconds = 0,
+    now = Date.now(),
+): URL => {
+    const {baseUrl: normalized} = normalizeNightscoutInput(baseUrl);
+    const path = kind === "iob"
+        ? "api/v2/properties/iob"
+        : "api/v1/treatments.json";
+    const url = new URL(`${normalized}/${path}`);
+    if (kind === "treatments") {
+        url.searchParams.set("count", "1000");
+        url.searchParams.set("find[insulin][$gt]", "0");
+        url.searchParams.set("find[created_at][$gte]",
+            new Date(now - historySeconds * 1000).toISOString());
+        url.searchParams.set("find[created_at][$lte]", new Date(now).toISOString());
+    }
+    return url;
+};
