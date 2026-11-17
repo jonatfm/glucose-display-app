@@ -11,7 +11,7 @@ const toNumber = (value: unknown): number | null => {
     const parsed =
         typeof value === "number"
             ? value
-            : typeof value === "string"
+            : typeof value === "string" && value.trim() !== ""
                 ? Number(value)
                 : NaN;
 
@@ -20,6 +20,7 @@ const toNumber = (value: unknown): number | null => {
 
 const parseReading = (
     value: unknown,
+    now: number,
 ) : GlucoseReading | null => {
     if (value === null || typeof value !== "object") {
         return null;
@@ -30,7 +31,10 @@ const parseReading = (
     const timestamp = toNumber(reading.date);
     const delta = toNumber(reading.delta);
 
-    if (glucose === null || timestamp === null) {
+    if (glucose === null || glucose < 20 || glucose > 600 ||
+        timestamp === null || timestamp <= 0 ||
+        !Number.isFinite(new Date(timestamp).getTime()) ||
+        timestamp > now + 5 * 60 * 1000) {
         return null;
     }
 
@@ -47,11 +51,12 @@ const parseReading = (
 
 export const parseXdripReadings = (
     payload: unknown,
+    now = Date.now(),
 ) : GlucoseReading[] => {
     const entries = Array.isArray(payload) ? payload : [payload];
 
     return entries
-        .map(parseReading)
+        .map((entry) => parseReading(entry, now))
         .filter(
             (reading): reading is GlucoseReading =>
                 reading !== null,

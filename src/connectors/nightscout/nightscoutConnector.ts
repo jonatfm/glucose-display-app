@@ -8,6 +8,7 @@ import { loadNightscoutToken } from "./nightscoutCredentials";
 import { parseNightscoutReadings } from "./nightscoutParser";
 import { createNightscoutInsulinUrl, createNightscoutReadingsUrl } from "./nightscoutUrl";
 import { parseInsulinDoses, parseNightscoutInsulinOnBoard } from "../../insulin/parser";
+import { fetchReadingHistory } from "../readingHistory";
 
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -36,6 +37,7 @@ export const createNightscoutConnector = (
     options: NightscoutConnectorOptions = {},
 ): GlucoseConnector => {
     let tokenPromise: Promise<string | null> | null = null;
+    let readingCount = MINIMUM_READINGS_FOR_DELTA;
 
     const getToken = (): Promise<string | null> => {
         if (config.authentication === "none") {
@@ -73,78 +75,80 @@ export const createNightscoutConnector = (
             minimumReadings,
             signal,
         }) {
-            const historyReadingCount =
-                Math.ceil(historySeconds / 300) + 1;
-            const count = Math.max(
-                historyReadingCount,
-                minimumReadings,
+            const result = await fetchReadingHistory(
+                {historySeconds, minimumReadings, signal},
+                async (count, before) => {
+                    const token = await getToken();
+
+                    if (config.authentication === "access-token" &&
+                        token === null) {
+                        throw new Error(
+                            "The stored Nightscout token is unavailable; replace it in settings",
+                        );
+                    }
+
+                    let response: Response;
+
+                    try {
+                        response = await fetchWithTimeout(
+                            createNightscoutReadingsUrl(
+                                config.baseUrl,
+                                count,
+                                before,
+                            ).toString(),
+                            {
+                                headers: {
+                                    Accept: "application/json",
+                                    ...(token === null
+                                        ? {}
+                                        : {"api-secret": token}),
+                                },
+                                redirect: "error",
+                                signal,
+                            },
+                            REQUEST_TIMEOUT_MILLISECONDS,
+                        );
+                    } catch (error) {
+                        if (signal.aborted ||
+                            (
+                                error instanceof Error &&
+                                error.name === "FetchTimeoutError"
+                            )) {
+                            throw error;
+                        }
+
+                        throw new Error(
+                            "Nightscout could not be reached securely",
+                        );
+                    }
+
+                    if (!response.ok) {
+                        throw responseError(response.status);
+                    }
+
+                    let payload: unknown;
+
+                    try {
+                        payload = await response.json();
+                    } catch {
+                        throw new Error(
+                            "Nightscout returned an unsupported response",
+                        );
+                    }
+
+                    const readings = parseNightscoutReadings(payload);
+
+                    return {readings, receivedCount: Array.isArray(payload) ? payload.length : 0};
+                },
+                {initialCount: readingCount, canPage: true},
             );
-            const token = await getToken();
-
-            if (config.authentication === "access-token" &&
-                token === null) {
-                throw new Error(
-                    "The stored Nightscout token is unavailable; replace it in settings",
-                );
-            }
-
-            let response: Response;
-
-            try {
-                response = await fetchWithTimeout(
-                    createNightscoutReadingsUrl(
-                        config.baseUrl,
-                        count,
-                    ).toString(),
-                    {
-                        headers: {
-                            Accept: "application/json",
-                            ...(token === null
-                                ? {}
-                                : {"api-secret": token}),
-                        },
-                        redirect: "error",
-                        signal,
-                    },
-                    REQUEST_TIMEOUT_MILLISECONDS,
-                );
-            } catch (error) {
-                if (signal.aborted ||
-                    (
-                        error instanceof Error &&
-                        error.name === "FetchTimeoutError"
-                    )) {
-                    throw error;
-                }
-
-                throw new Error(
-                    "Nightscout could not be reached securely",
-                );
-            }
-
-            if (!response.ok) {
-                throw responseError(response.status);
-            }
-
-            let payload: unknown;
-
-            try {
-                payload = await response.json();
-            } catch {
-                throw new Error(
-                    "Nightscout returned an unsupported response",
-                );
-            }
-
-            const readings = parseNightscoutReadings(payload);
-
-            if (readings.length === 0) {
+            if (result.readings.length === 0) {
                 throw new Error(
                     "Connected, but Nightscout returned no usable glucose readings",
                 );
             }
-
-            return readings;
+            readingCount = result.requestedCount;
+            return result.readings;
         },
 
         async getInsulinOnBoard(signal) {

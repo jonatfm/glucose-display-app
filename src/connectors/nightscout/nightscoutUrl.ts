@@ -66,6 +66,7 @@ export const normalizeNightscoutInput = (
 export const createNightscoutReadingsUrl = (
     baseUrl: string,
     count: number,
+    before?: number,
 ): URL => {
     const normalized = normalizeNightscoutInput(baseUrl);
     const url = new URL(
@@ -73,6 +74,7 @@ export const createNightscoutReadingsUrl = (
     );
 
     url.searchParams.set("count", String(count));
+    if (before !== undefined) url.searchParams.set("find[date][$lte]", String(before));
     return url;
 };
 

@@ -37,8 +37,14 @@ export const getGlucoseDisplayStatus = ({
         return "CONNECTING";
     }
 
+    const timestamp = latestReading.measuredAt.getTime();
+    if (!Number.isFinite(timestamp) || timestamp <= 0 ||
+        timestamp > now + 5 * 60 * 1000) {
+        return "STALE";
+    }
+
     const ageMilliseconds = Math.max(
-        now - latestReading.measuredAt.getTime(),
+        now - timestamp,
         0,
     );
 

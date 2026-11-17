@@ -5,6 +5,7 @@ import {
 } from "../types";
 import { parseXdripReadings } from "./xdripParser";
 import { fetchWithTimeout } from "../fetchWithTimeout";
+import { fetchReadingHistory } from "../readingHistory";
 import { parseInsulinDoses, parseXdripInsulinOnBoard } from "../../insulin/parser";
 
 const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
@@ -12,16 +13,8 @@ const REQUEST_TIMEOUT_MILLISECONDS = 10_000;
 export function createXdripConnector(
     config: XdripSourceConfig,
 ) : GlucoseConnector {
-    const createUrl = (
-        historySeconds: number,
-        minimumReadings: number,
-    ) => {
-        const historyReadingCount =
-            Math.ceil(historySeconds / 300) + 1;
-        const count = Math.max(
-            historyReadingCount,
-            minimumReadings,
-        );
+    let readingCount = MINIMUM_READINGS_FOR_DELTA;
+    const createUrl = (count: number) => {
         const url = new URL("/sgv.json", config.baseUrl);
 
         url.searchParams.set("count", String(count));
@@ -45,32 +38,39 @@ export function createXdripConnector(
             minimumReadings,
             signal,
         }) {
-            const response = await fetchWithTimeout(
-                createUrl(
-                    historySeconds,
-                    minimumReadings,
-                ).toString(),
-                {
-                    headers: {
-                        Accept: "application/json",
-                    },
-                    signal,
+            const result = await fetchReadingHistory(
+                {historySeconds, minimumReadings, signal},
+                async (count) => {
+                    const response = await fetchWithTimeout(
+                        createUrl(count).toString(),
+                        {
+                            headers: {
+                                Accept: "application/json",
+                            },
+                            signal,
+                        },
+                        REQUEST_TIMEOUT_MILLISECONDS,
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`xDrip returned HTTP ${response.status}`);
+                    }
+
+                    const payload: unknown = await response.json();
+                    const readings = parseXdripReadings(payload);
+
+                    return {
+                        readings,
+                        receivedCount: Array.isArray(payload) ? payload.length : 1,
+                    };
                 },
-                REQUEST_TIMEOUT_MILLISECONDS,
+                {initialCount: readingCount, canPage: false},
             );
-
-            if (!response.ok) {
-                throw new Error(`xDrip returned HTTP ${response.status}`);
-            }
-
-            const payload: unknown = await response.json();
-            const readings = parseXdripReadings(payload);
-
-            if (readings.length === 0) {
+            if (result.readings.length === 0) {
                 throw new Error("xDrip returned no readings");
             }
-            
-            return readings;
+            readingCount = result.requestedCount;
+            return result.readings;
         },
 
         async getInsulinOnBoard(signal) {
