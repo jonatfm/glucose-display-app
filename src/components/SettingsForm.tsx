@@ -26,7 +26,10 @@ import {
     deleteNightscoutToken,
     storeNightscoutToken,
 } from "../connectors/nightscout/nightscoutCredentials";
-import { normalizeNightscoutInput } from "../connectors/nightscout/nightscoutUrl";
+import {
+    getReusableNightscoutCredentialId,
+    normalizeNightscoutInput,
+} from "../connectors/nightscout/nightscoutUrl";
 import {
     formatGlucoseInput,
     glucoseValueToMgDl,
@@ -540,14 +543,13 @@ function SettingsForm({
 
         const storedNightscout =
             config.source.configurations.nightscout;
-        const existingCredentialId =
-            storedNightscout.authentication === "access-token"
-                ? storedNightscout.credentialId
-                : null;
+        const existingCredentialId = getReusableNightscoutCredentialId(
+            storedNightscout, normalized.baseUrl,
+        );
 
         if (nightscoutToken === null &&
             existingCredentialId === null) {
-            throw new Error("Enter a Nightscout access token");
+            throw new Error("Enter an access token for this Nightscout server");
         }
 
         return {
@@ -1117,9 +1119,10 @@ function SettingsForm({
                                 autoCorrect={false}
                                 onChangeText={setNightscoutTokenDraft}
                                 placeholder={
-                                    config.source.configurations.nightscout
-                                        .authentication ===
-                                        "access-token"
+                                    getReusableNightscoutCredentialId(
+                                        config.source.configurations.nightscout,
+                                        nightscoutBaseUrl,
+                                    ) !== null
                                         ? "Token stored — enter to replace"
                                         : "Enter token"
                                 }

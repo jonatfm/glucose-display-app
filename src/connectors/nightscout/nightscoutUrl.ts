@@ -1,3 +1,5 @@
+import type { NightscoutSourceConfig } from "../../config/types";
+
 export type NormalizedNightscoutInput = {
     baseUrl: string;
     token: string | null;
@@ -72,6 +74,22 @@ export const createNightscoutReadingsUrl = (
 
     url.searchParams.set("count", String(count));
     return url;
+};
+
+// A different origin or reverse-proxy path can belong to another server.
+export const getReusableNightscoutCredentialId = (
+    stored: NightscoutSourceConfig,
+    baseUrl: string,
+): string | null => {
+    if (stored.authentication !== "access-token") return null;
+    try {
+        return normalizeNightscoutInput(stored.baseUrl).baseUrl ===
+            normalizeNightscoutInput(baseUrl).baseUrl
+            ? stored.credentialId
+            : null;
+    } catch {
+        return null;
+    }
 };
 
 export const createNightscoutInsulinUrl = (
