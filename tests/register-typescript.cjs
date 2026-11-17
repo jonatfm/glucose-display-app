@@ -1,0 +1,11 @@
+const fs = require("node:fs");
+const ts = require("typescript");
+
+// Exercise app modules with Node's test runner without adding a test framework.
+require.extensions[".ts"] = (module, filename) => {
+    const {outputText} = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+        compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022},
+        fileName: filename,
+    });
+    module._compile(outputText, filename);
+};
