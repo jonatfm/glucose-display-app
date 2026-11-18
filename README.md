@@ -4,7 +4,7 @@ This is a small utility application I have made to easily see my blood sugar at 
 
 Originally called "Car Glucose Display", the app also proved useful at the gym and while studying. Its clean display keeps glucose information visible while keeping the screen awake.
 
-<img src="./docs/images/glucose-display.webp" alt="Glucose Display showing a glucose reading, reading age, insulin on board, and history graph" width="280">
+<img src="./docs/images/app-in-car.jpg" alt="Glucose Display on a phone in the car's center console, showing a glucose reading and history graph" width="640">
 
 ## Features
 
