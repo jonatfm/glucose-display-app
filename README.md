@@ -1,5 +1,7 @@
 # Glucose Display
 
+Read about it on my [personal site](https://jonatfm.de/articles/glucose-display-app/).
+
 This is a small utility application I have made to easily see my blood sugar at a glance while driving my car. It provides a focused display using data from xDrip or Nightscout.
 
 Originally called "Car Glucose Display", the app also proved useful at the gym and while studying. Its clean display keeps glucose information visible while keeping the screen awake.
